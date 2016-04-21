@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hyak.Common", "src\Hyak.Com
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.KeyVault", "src\Microsoft.Azure.KeyVault\Microsoft.Azure.KeyVault.csproj", "{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.IdentityModel.Clients.ActiveDirectory", "src\Microsoft.IdentityModel.Clients.ActiveDirectory\Microsoft.IdentityModel.Clients.ActiveDirectory.csproj", "{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,6 +36,10 @@ Global
 		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -42,5 +48,6 @@ Global
 		{6FC1B259-87D1-4BB7-9FFF-6C0625D99E46} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 		{74A1219F-A385-45AA-A743-5D064E95112E} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
+		{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 	EndGlobalSection
 EndGlobal
