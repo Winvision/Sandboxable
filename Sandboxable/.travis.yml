@@ -1,0 +1,9 @@
+branches:
+  only:
+    - master
+
+language: csharp
+solution: Sandboxable.sln
+
+
+
