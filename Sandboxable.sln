@@ -7,12 +7,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02A0C1BF-E1E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.Common", "src\Microsoft.Azure.Common\Microsoft.Azure.Common.csproj", "{6FC1B259-87D1-4BB7-9FFF-6C0625D99E46}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hyak.Common", "Hyak.Common\Hyak.Common.csproj", "{74A1219F-A385-45AA-A743-5D064E95112E}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0F92D177-1B1D-466A-9F23-AB2137DF247E}"
 	ProjectSection(SolutionItems) = preProject
 		.travis.yml = .travis.yml
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hyak.Common", "src\Hyak.Common\Hyak.Common.csproj", "{74A1219F-A385-45AA-A743-5D064E95112E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
