@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hyak.Common", "src\Hyak.Common\Hyak.Common.csproj", "{74A1219F-A385-45AA-A743-5D064E95112E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.KeyVault", "src\Microsoft.Azure.KeyVault\Microsoft.Azure.KeyVault.csproj", "{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,6 +30,10 @@ Global
 		{74A1219F-A385-45AA-A743-5D064E95112E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{74A1219F-A385-45AA-A743-5D064E95112E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{74A1219F-A385-45AA-A743-5D064E95112E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -35,5 +41,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{6FC1B259-87D1-4BB7-9FFF-6C0625D99E46} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 		{74A1219F-A385-45AA-A743-5D064E95112E} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
+		{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 	EndGlobalSection
 EndGlobal
