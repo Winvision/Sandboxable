@@ -7,7 +7,7 @@
     <ProjectGuid>{74A1219F-A385-45AA-A743-5D064E95112E}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Hyak.Common</RootNamespace>
+    <RootNamespace>Sandboxable.Hyak.Common</RootNamespace>
     <AssemblyName>Sandboxable.Hyak.Common</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -45,6 +45,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LazyList.cs" />
+    <Compile Include="ILazyCollection.cs" />
+    <Compile Include="LazyDictionary.cs" />
+    <Compile Include="ServiceClient.cs" />
+    <Compile Include="RetryHandler.cs" />
     <Compile Include="CloudCredentials.cs" />
     <Compile Include="CloudError.cs" />
     <Compile Include="CloudException.cs" />
@@ -52,12 +57,42 @@
     <Compile Include="CloudHttpRequestErrorInfo.cs" />
     <Compile Include="CloudHttpResponseErrorInfo.cs" />
     <Compile Include="HttpOperationResponse.cs" />
+    <Compile Include="Internals\IndisposableDelegatingHandler.cs" />
+    <Compile Include="Internals\DisposableReference.cs" />
+    <Compile Include="Internals\PortablePlatformAbstraction.cs" />
     <Compile Include="Internals\HttpExtensions.cs" />
+    <Compile Include="Platform\IHttpTransportHandlerProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="TransientFaultHandling\AsyncExecution`.cs" />
+    <Compile Include="TransientFaultHandling\AsyncExecution.cs" />
+    <Compile Include="TransientFaultHandling\RetryPolicy`.cs" />
+    <Compile Include="TransientFaultHandling\DefaultHttpErrorDetectionStrategy.cs" />
+    <Compile Include="TransientFaultHandling\HttpRequestExceptionWithStatus.cs" />
+    <Compile Include="TransientFaultHandling\RetryLimitExceededException.cs" />
+    <Compile Include="TransientFaultHandling\RetryingEventArgs.cs" />
+    <Compile Include="TransientFaultHandling\RetryPolicy.cs" />
+    <Compile Include="TransientFaultHandling\RetryStrategy.cs" />
+    <Compile Include="TransientFaultHandling\ExponentialBackoff.cs" />
+    <Compile Include="TransientFaultHandling\Incremental.cs" />
+    <Compile Include="TransientFaultHandling\FixedInterval.cs" />
+    <Compile Include="TransientFaultHandling\ShouldRetry.cs" />
+    <Compile Include="TransientFaultHandling\Guard.cs" />
+    <Compile Include="TransientFaultHandling\ITransientErrorDetectionStrategy.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Hyak.Common.nuspec" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

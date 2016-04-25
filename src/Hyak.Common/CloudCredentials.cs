@@ -19,5 +19,10 @@ namespace Sandboxable.Hyak.Common
         {
             return Task.FromResult<object>(null);
         }
+
+        public virtual void InitializeServiceClient<T>(ServiceClient<T> client)
+            where T : ServiceClient<T>
+        {
+        }
     }
 }
