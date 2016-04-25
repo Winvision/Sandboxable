@@ -7,7 +7,7 @@
     <ProjectGuid>{FF9E9044-F0C1-48AB-9DC7-5DDF9E62D3FD}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Microsoft.Azure.KeyVault</RootNamespace>
+    <RootNamespace>Sandboxable.Microsoft.Azure.KeyVault</RootNamespace>
     <AssemblyName>Sandboxable.Microsoft.Azure.KeyVault</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
