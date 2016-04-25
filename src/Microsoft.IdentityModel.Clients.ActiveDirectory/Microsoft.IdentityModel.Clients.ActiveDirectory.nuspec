@@ -4,7 +4,7 @@
     <id>$id$</id>
     <version>0.0.0.0</version>
     <authors>Winvision</authors>
-    <description>$description$</description>
+    <description>This package contains the binaries of the Active Directory Authentication Library (ADAL). ADAL provides easy to use authentication functionality for your .NET client and Windows Store apps by taking advantage of Windows Server Active Directory and Windows Azure Active Directory.</description>
     <language>en-US</language>
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
