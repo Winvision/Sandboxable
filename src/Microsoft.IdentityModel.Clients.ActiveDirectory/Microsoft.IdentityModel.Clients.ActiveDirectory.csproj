@@ -7,7 +7,7 @@
     <ProjectGuid>{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Microsoft.IdentityModel.Clients.ActiveDirectory</RootNamespace>
+    <RootNamespace>Sandboxable.Microsoft.IdentityModel.Clients.ActiveDirectory</RootNamespace>
     <AssemblyName>Sandboxable.Microsoft.IdentityModel.Clients.ActiveDirectory</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
