@@ -46,6 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ADAL.Common\Base64UrlEncoder.cs" />
+    <Compile Include="ADAL.Common\OAuth2Response.cs" />
     <Compile Include="ADAL.Common\CommonAssemblyInfo.cs" />
     <Compile Include="ADAL.Common\OAuthConstants.cs" />
     <Compile Include="ADAL.Common\Constants.cs" />
