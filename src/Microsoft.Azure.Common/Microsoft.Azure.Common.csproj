@@ -36,7 +36,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.16\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
+      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.17\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
