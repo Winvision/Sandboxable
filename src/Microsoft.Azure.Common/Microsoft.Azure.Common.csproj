@@ -7,7 +7,7 @@
     <ProjectGuid>{6FC1B259-87D1-4BB7-9FFF-6C0625D99E46}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Microsoft.Azure.Common</RootNamespace>
+    <RootNamespace>Sandboxable.Microsoft.Azure.Common</RootNamespace>
     <AssemblyName>Sandboxable.Microsoft.Azure.Common</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -35,10 +35,6 @@
       <HintPath>..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.8\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -49,13 +45,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Credentials\SubscriptionCloudCredentials.cs" />
+    <Compile Include="Models\ResourceBaseExtended.cs" />
+    <Compile Include="Models\ResourceBase.cs" />
     <Compile Include="Properties\AssemblyAdditionalInfo.cs" />
-    <Compile Include="Common\AzureOperationResponse.cs" />
+    <Compile Include="Models\AzureOperationResponse.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Microsoft.Azure.Common.nuspec" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Hyak.Common\Hyak.Common.csproj">
+      <Project>{74A1219F-A385-45AA-A743-5D064E95112E}</Project>
+      <Name>Hyak.Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
