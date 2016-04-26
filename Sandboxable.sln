@@ -20,6 +20,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.IdentityModel.Cli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.Management.KeyVault", "src\Microsoft.Azure.Management.KeyVault\Microsoft.Azure.Management.KeyVault.csproj", "{568EA07F-F3DB-4E75-9CD5-E4EF5CB2AA79}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{36809857-D87B-494D-B4FA-D712BAAA58B9}"
+	ProjectSection(SolutionItems) = preProject
+		build\pack.ps1 = build\pack.ps1
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
