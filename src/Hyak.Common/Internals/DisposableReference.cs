@@ -9,7 +9,7 @@ namespace Sandboxable.Hyak.Common.Internals
     internal class DisposableReference<T> : IDisposable
         where T : class, IDisposable
     {
-        private object _lock;
+        private readonly object _lock = new object();
 
         public T Reference
         {

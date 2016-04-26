@@ -146,7 +146,9 @@ namespace Sandboxable.Hyak.Common.TransientFaultHandling
                     tResult = func();
                     break;
                 }
+#pragma warning disable CS0618 // Type or member is obsolete
                 catch (RetryLimitExceededException retryLimitExceededException)
+#pragma warning restore CS0618 // Type or member is obsolete
                 {
                     if (retryLimitExceededException.InnerException != null)
                     {

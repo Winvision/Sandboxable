@@ -49,7 +49,9 @@ namespace Sandboxable.Hyak.Common.TransientFaultHandling
             var zero = TimeSpan.Zero;
 
             var innerException = runningTask.Exception.InnerException;
+#pragma warning disable CS0618 // Type or member is obsolete
             if (innerException is RetryLimitExceededException)
+#pragma warning restore CS0618 // Type or member is obsolete
             {
                 var taskCompletionSource = new TaskCompletionSource<TResult>();
                 if (innerException.InnerException == null)
