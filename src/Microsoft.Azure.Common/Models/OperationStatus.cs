@@ -13,21 +13,26 @@
 // limitations under the License.
 //
 
-using Sandboxable.Hyak.Common;
-
 namespace Sandboxable.Microsoft.Azure
 {
     /// <summary>
-    /// Base class for credentials associated with a particular subscription.
+    /// The status of the asynchronous request.
     /// </summary>
-    public abstract class SubscriptionCloudCredentials
-        : CloudCredentials
+    public enum OperationStatus
     {
         /// <summary>
-        /// Gets subscription ID which uniquely identifies Microsoft Azure 
-        /// subscription. The subscription ID forms part of the URI for 
-        /// every call that you make to the Service Management API.
+        /// The asynchronous request is in progress.
         /// </summary>
-        public abstract string SubscriptionId { get; }
+        InProgress,
+
+        /// <summary>
+        /// The asynchronous request succeeded.
+        /// </summary>
+        Succeeded,
+
+        /// <summary>
+        /// The asynchronous request failed.
+        /// </summary>
+        Failed
     }
 }

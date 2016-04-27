@@ -13,21 +13,27 @@
 // limitations under the License.
 //
 
-using Sandboxable.Hyak.Common;
+using System;
+using System.Linq.Expressions;
 
-namespace Sandboxable.Microsoft.Azure
+namespace Sandboxable.Microsoft.Azure.Common.OData
 {
     /// <summary>
-    /// Base class for credentials associated with a particular subscription.
+    /// Handles OData filter generation.
     /// </summary>
-    public abstract class SubscriptionCloudCredentials
-        : CloudCredentials
+    public class FilterString
     {
         /// <summary>
-        /// Gets subscription ID which uniquely identifies Microsoft Azure 
-        /// subscription. The subscription ID forms part of the URI for 
-        /// every call that you make to the Service Management API.
+        /// Generates an OData filter from a specified Linq expression.
         /// </summary>
-        public abstract string SubscriptionId { get; }
+        /// <typeparam name="T">Filter type</typeparam>
+        /// <param name="filter">Entity to use for filter generation</param>
+        /// <returns></returns>
+        public static string Generate<T>(Expression<Func<T, bool>> filter)
+        {
+            UrlExpressionVisitor visitor = new UrlExpressionVisitor();
+            visitor.Visit(filter);
+            return visitor.ToString();
+        }
     }
 }

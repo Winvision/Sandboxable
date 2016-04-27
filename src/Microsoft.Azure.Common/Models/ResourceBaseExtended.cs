@@ -26,23 +26,41 @@ namespace Sandboxable.Microsoft.Azure
     /// <summary>
     /// Resource information with extended details.
     /// </summary>
-    public class ResourceBaseExtended : ResourceBase
+    public partial class ResourceBaseExtended : ResourceBase
     {
+        private string _id;
+        
         /// <summary>
         /// Optional. Gets or sets the ID of the resource.
         /// </summary>
-        public string Id { get; set; }
-
+        public string Id
+        {
+            get { return this._id; }
+            set { this._id = value; }
+        }
+        
+        private string _name;
+        
         /// <summary>
         /// Optional. Gets or sets the name of the resource.
         /// </summary>
-        public string Name { get; set; }
-
+        public string Name
+        {
+            get { return this._name; }
+            set { this._name = value; }
+        }
+        
+        private string _type;
+        
         /// <summary>
         /// Optional. Gets or sets the type of the resource.
         /// </summary>
-        public string Type { get; set; }
-
+        public string Type
+        {
+            get { return this._type; }
+            set { this._type = value; }
+        }
+        
         /// <summary>
         /// Initializes a new instance of the ResourceBaseExtended class.
         /// </summary>
@@ -59,9 +77,8 @@ namespace Sandboxable.Microsoft.Azure
         {
             if (location == null)
             {
-                throw new ArgumentNullException(nameof(location));
+                throw new ArgumentNullException("location");
             }
-
             this.Location = location;
         }
     }

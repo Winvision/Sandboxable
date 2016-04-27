@@ -28,18 +28,30 @@ namespace Sandboxable.Microsoft.Azure
     /// <summary>
     /// Resource information.
     /// </summary>
-    public class ResourceBase
+    public partial class ResourceBase
     {
+        private string _location;
+        
         /// <summary>
         /// Required. Gets or sets the location of the resource.
         /// </summary>
-        public string Location { get; set; }
-
+        public string Location
+        {
+            get { return this._location; }
+            set { this._location = value; }
+        }
+        
+        private IDictionary<string, string> _tags;
+        
         /// <summary>
         /// Optional. Gets or sets the tags attached to the resource.
         /// </summary>
-        public IDictionary<string, string> Tags { get; set; }
-
+        public IDictionary<string, string> Tags
+        {
+            get { return this._tags; }
+            set { this._tags = value; }
+        }
+        
         /// <summary>
         /// Initializes a new instance of the ResourceBase class.
         /// </summary>
@@ -57,9 +69,8 @@ namespace Sandboxable.Microsoft.Azure
         {
             if (location == null)
             {
-                throw new ArgumentNullException(nameof(location));
+                throw new ArgumentNullException("location");
             }
-
             this.Location = location;
         }
     }
