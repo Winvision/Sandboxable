@@ -20,19 +20,15 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
     using Sandboxable.Microsoft.WindowsAzure.Storage.Auth;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Blob;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor;
-#if !PORTABLE
     using Sandboxable.Microsoft.WindowsAzure.Storage.File;
-#endif
     using System;
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
     using System.Xml;
 
-#if WINDOWS_DESKTOP 
     using System.Net;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
-#endif
 
     internal static class CommonUtility
     {
@@ -80,7 +76,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             return new ExecutionState<NullType>(cmdWithTimeout, options != null ? options.RetryPolicy : null, new OperationContext());
         }
 
-#if !PORTABLE
         /// <summary>
         /// Create an ExecutionState object that can be used for pre-request operations
         /// such as buffering user's data.
@@ -97,7 +92,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
 
             return new ExecutionState<NullType>(cmdWithTimeout, options != null ? options.RetryPolicy : null, new OperationContext());
         }
-#endif
 
         /// <summary>
         /// Returns the larger of two time spans.
@@ -352,7 +346,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             }
         }
 
-#if WINDOWS_DESKTOP 
         /// <summary>
         /// Applies the request optimizations such as disabling buffering and 100 continue.
         /// </summary>
@@ -371,11 +364,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
                 request.ContentLength = length;
             }
 
-#if !(WINDOWS_PHONE && WINDOWS_DESKTOP)
             // Disable the Expect 100-Continue
             request.ServicePoint.Expect100Continue = false;
-#endif
         }
-#endif
     }
 }

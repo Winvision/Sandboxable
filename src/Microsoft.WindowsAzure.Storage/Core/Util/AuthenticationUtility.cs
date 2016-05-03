@@ -24,9 +24,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
     using System.Globalization;
     using System.Net;
     using System.Text;
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-    using System.Net.Http;
-#endif
 
     internal static class AuthenticationUtility
     {
@@ -35,118 +32,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
         private const char HeaderNameValueSeparator = ':';
         private const char HeaderValueDelimiter = ',';
 
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        /// <summary>
-        /// Gets the value of the x-ms-date or Date header.
-        /// </summary>
-        /// <param name="request">The request where the value is read from.</param>
-        /// <returns>The value of the x-ms-date or Date header.</returns>
-        public static string GetPreferredDateHeaderValue(HttpRequestMessage request)
-        {
-            string microsoftDateHeaderValue = HttpResponseMessageUtils.GetHeaderSingleValueOrDefault(request.Headers, Constants.HeaderConstants.Date);
-            if (!string.IsNullOrEmpty(microsoftDateHeaderValue))
-            {
-                return microsoftDateHeaderValue;
-            }
-
-            return AuthenticationUtility.GetCanonicalizedHeaderValue(request.Headers.Date);
-        }
-
-        /// <summary>
-        /// Appends the value of the Content-Length header to the specified canonicalized string.
-        /// </summary>
-        /// <param name="canonicalizedString">The canonicalized string where the value is appended.</param>
-        /// <param name="request">The request where the value is read from.</param>
-        public static void AppendCanonicalizedContentLengthHeader(CanonicalizedString canonicalizedString, HttpRequestMessage request)
-        {
-            long? contentLength = request.Content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength.Value != -1L && contentLength.Value != 0)
-            {
-                canonicalizedString.AppendCanonicalizedElement(contentLength.Value.ToString(CultureInfo.InvariantCulture));
-            }
-            else
-            {
-                canonicalizedString.AppendCanonicalizedElement(null);
-            }
-        }
-
-        /// <summary>
-        /// Appends the value of the Date header (or, optionally, the x-ms-date header) to the specified canonicalized string.
-        /// </summary>
-        /// <param name="canonicalizedString">The canonicalized string where the value is appended.</param>
-        /// <param name="request">The request where the value is read from.</param>
-        /// <param name="allowMicrosoftDateHeader">true if the value of the x-ms-date header can be used and is preferred; otherwise, false.</param>
-        public static void AppendCanonicalizedDateHeader(CanonicalizedString canonicalizedString, HttpRequestMessage request, bool allowMicrosoftDateHeader = false)
-        {
-            string microsoftDateHeaderValue = HttpResponseMessageUtils.GetHeaderSingleValueOrDefault(request.Headers, Constants.HeaderConstants.Date);
-            if (string.IsNullOrEmpty(microsoftDateHeaderValue))
-            {
-                canonicalizedString.AppendCanonicalizedElement(AuthenticationUtility.GetCanonicalizedHeaderValue(request.Headers.Date));
-            }
-            else if (allowMicrosoftDateHeader)
-            {
-                canonicalizedString.AppendCanonicalizedElement(microsoftDateHeaderValue);
-            }
-            else
-            {
-                canonicalizedString.AppendCanonicalizedElement(null);
-            }
-        }
-
-        /// <summary>
-        /// Appends the values of the x-ms-* headers to the specified canonicalized string.
-        /// </summary>
-        /// <param name="canonicalizedString">The canonicalized string where the values are appended.</param>
-        /// <param name="request">The request where the values are read from.</param>
-        public static void AppendCanonicalizedCustomHeaders(CanonicalizedString canonicalizedString, HttpRequestMessage request)
-        {
-            CultureInfo sortingCulture = new CultureInfo("en-US");
-            StringComparer sortingComparer = new CultureStringComparer(sortingCulture, false);
-            SortedDictionary<string, IEnumerable<string>> headers = new SortedDictionary<string, IEnumerable<string>>(sortingComparer);
-
-            foreach (KeyValuePair<string, IEnumerable<string>> header in request.Headers)
-            {
-                string headerName = header.Key;
-                if (headerName.StartsWith(Constants.HeaderConstants.PrefixForStorageHeader, StringComparison.OrdinalIgnoreCase))
-                {
-                    headers.Add(headerName.ToLowerInvariant(), header.Value);
-                }
-            }
-
-            if (request.Content != null)
-            {
-                foreach (KeyValuePair<string, IEnumerable<string>> header in request.Content.Headers)
-                {
-                    string headerName = header.Key;
-                    if (headerName.StartsWith(Constants.HeaderConstants.PrefixForStorageHeader, StringComparison.OrdinalIgnoreCase))
-                    {
-                        headers.Add(headerName.ToLowerInvariant(), header.Value);
-                    }
-                }
-            }
-
-            StringBuilder canonicalizedElement = new StringBuilder(ExpectedHeaderNameAndValueLength);
-            foreach (KeyValuePair<string, IEnumerable<string>> header in headers)
-            {
-                canonicalizedElement.Clear();
-                canonicalizedElement.Append(header.Key);
-                canonicalizedElement.Append(HeaderNameValueSeparator);
-                int keyLength = canonicalizedElement.Length;
-
-                foreach (string value in header.Value)
-                {
-                    canonicalizedElement.Append(value.TrimStart().Replace("\r\n", string.Empty));
-                    canonicalizedElement.Append(HeaderValueDelimiter);
-                }
-                
-                // If the delta is 0 or 1, then the metadata value was null or empty so we should not include it.
-                if (canonicalizedElement.Length - keyLength > 1)
-                {
-                    canonicalizedString.AppendCanonicalizedElement(canonicalizedElement.ToString(0, canonicalizedElement.Length - 1));
-                }
-            }
-        }
-#else
         /// <summary>
         /// Gets the value of the x-ms-date or Date header.
         /// </summary>
@@ -239,7 +124,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
                 }
             }
         }
-#endif
 
         /// <summary>
         /// Gets the canonicalized header value to use for the specified date/time or <c>null</c> if it does not have a value.

@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;PORTABLE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;PORTABLE; TASK; SYNC</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -25,11 +25,15 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;PORTABLE</DefineConstants>
+    <DefineConstants>TRACE;PORTABLE; TASK; SYNC</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.Azure.KeyVault.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.Azure.KeyVault.Core.1.0.0\lib\net40\Microsoft.Azure.KeyVault.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Microsoft.Data.Edm, Version=5.7.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Microsoft.Data.Edm.5.7.0\lib\net40\Microsoft.Data.Edm.dll</HintPath>
       <Private>True</Private>
@@ -62,7 +66,10 @@
   <ItemGroup>
     <Compile Include="AccessCondition.cs" />
     <Compile Include="AuthenticationScheme.cs" />
-    <Compile Include="Auth\Protocol\StorageAuthenticationHttpHandler.cs" />
+    <Compile Include="Auth\Protocol\IAuthenticationHandler.cs" />
+    <Compile Include="Auth\Protocol\NoOpAuthenticationHandler.cs" />
+    <Compile Include="Auth\Protocol\SharedKeyAuthenticationHandler.cs" />
+    <Compile Include="Auth\Protocol\SharedKeyLiteAuthenticationHandler.cs" />
     <Compile Include="Auth\StorageAccountKey.cs" />
     <Compile Include="Auth\StorageCredentials.cs" />
     <Compile Include="Blob\BlobAttributes.cs" />
@@ -70,6 +77,10 @@
     <Compile Include="Blob\BlobContainerProperties.cs" />
     <Compile Include="Blob\BlobContainerPublicAccessType.cs" />
     <Compile Include="Blob\BlobContinuationToken.cs" />
+    <Compile Include="Blob\BlobEncryptedWriteStream.cs" />
+    <Compile Include="Blob\BlobEncryptionData.cs" />
+    <Compile Include="Blob\BlobEncryptionMode.cs" />
+    <Compile Include="Blob\BlobEncryptionPolicy.cs" />
     <Compile Include="Blob\BlobListingDetails.cs" />
     <Compile Include="Blob\BlobProperties.cs" />
     <Compile Include="Blob\BlobReadStream.cs" />
@@ -93,6 +104,7 @@
     <Compile Include="Blob\CloudBlobContainer.cs" />
     <Compile Include="Blob\CloudBlobDirectory.Common.cs" />
     <Compile Include="Blob\CloudBlobDirectory.cs" />
+    <Compile Include="Blob\CloudBlobStream.cs" />
     <Compile Include="Blob\CloudBlockBlob.Common.cs" />
     <Compile Include="Blob\CloudBlockBlob.cs" />
     <Compile Include="Blob\CloudPageBlob.Common.cs" />
@@ -104,7 +116,6 @@
     <Compile Include="Blob\DeleteSnapshotsOption.cs" />
     <Compile Include="Blob\ICloudBlob.Common.cs" />
     <Compile Include="Blob\ICloudBlob.cs" />
-    <Compile Include="Blob\ICloudBlobStream.cs" />
     <Compile Include="Blob\IListBlobItem.cs" />
     <Compile Include="Blob\LeaseAction.cs" />
     <Compile Include="Blob\LeaseDuration.cs" />
@@ -119,11 +130,13 @@
     <Compile Include="Blob\Protocol\BlobHttpRequestMessageFactory.cs" />
     <Compile Include="Blob\Protocol\BlobHttpResponseParsers.Common.cs" />
     <Compile Include="Blob\Protocol\BlobHttpResponseParsers.cs" />
+    <Compile Include="Blob\Protocol\BlobHttpWebRequestFactory.cs" />
     <Compile Include="Blob\Protocol\BlobListingContext.cs" />
     <Compile Include="Blob\Protocol\BlobRequest.cs" />
     <Compile Include="Blob\Protocol\ContainerHttpRequestMessageFactory.cs" />
     <Compile Include="Blob\Protocol\ContainerHttpResponseParsers.Common.cs" />
     <Compile Include="Blob\Protocol\ContainerHttpResponseParsers.cs" />
+    <Compile Include="Blob\Protocol\ContainerHttpWebRequestFactory.cs" />
     <Compile Include="Blob\Protocol\GetBlockListResponse.cs" />
     <Compile Include="Blob\Protocol\GetPageDiffRangesResponse.cs" />
     <Compile Include="Blob\Protocol\GetPageRangesResponse.cs" />
@@ -146,14 +159,20 @@
     <Compile Include="Core\Auth\SharedKeyLiteCanonicalizer.cs" />
     <Compile Include="Core\Auth\SharedKeyLiteTableCanonicalizer.cs" />
     <Compile Include="Core\Auth\SharedKeyTableCanonicalizer.cs" />
+    <Compile Include="Core\BlobDecryptStream.cs" />
+    <Compile Include="Core\ByteCountingStream.cs" />
     <Compile Include="Core\CanonicalizedString.cs" />
     <Compile Include="Core\CommandLocationMode.cs" />
     <Compile Include="Core\Executor\ExecutionState.cs" />
     <Compile Include="Core\Executor\Executor.cs" />
     <Compile Include="Core\Executor\ExecutorBase.cs" />
     <Compile Include="Core\Executor\ExecutorOperation.cs" />
+    <Compile Include="Core\Executor\RecoveryActions.cs" />
     <Compile Include="Core\Executor\RESTCommand.cs" />
     <Compile Include="Core\Executor\StorageCommandBase.cs" />
+    <Compile Include="Core\Executor\TableCommand.cs" />
+    <Compile Include="Core\Executor\TableExecutor.cs" />
+    <Compile Include="Core\LengthLimitingStream.cs" />
     <Compile Include="Core\Logger.Common.cs" />
     <Compile Include="Core\Logger.cs" />
     <Compile Include="Core\MultiBufferMemoryStream.cs" />
@@ -165,9 +184,13 @@
     <Compile Include="Core\StorageRequestMessage.cs" />
     <Compile Include="Core\SyncMemoryStream.cs" />
     <Compile Include="Core\UriQueryBuilder.cs" />
+    <Compile Include="Core\Util\APMWithTimeout.cs" />
+    <Compile Include="Core\Util\AsyncExtensions.cs" />
     <Compile Include="Core\Util\AsyncSemaphore.Common.cs" />
     <Compile Include="Core\Util\AsyncSemaphore.cs" />
+    <Compile Include="Core\Util\AsyncStreamCopier.cs" />
     <Compile Include="Core\Util\AuthenticationUtility.cs" />
+    <Compile Include="Core\Util\CancellableOperationBase.cs" />
     <Compile Include="Core\Util\CommonUtility.cs" />
     <Compile Include="Core\Util\CounterEvent.cs" />
     <Compile Include="Core\Util\CryptoUtility.cs" />
@@ -178,11 +201,68 @@
     <Compile Include="Core\Util\MD5Wrapper.cs" />
     <Compile Include="Core\Util\NavigationHelper.cs" />
     <Compile Include="Core\Util\PlatformAgnosticReflectionExtensions.cs" />
+    <Compile Include="Core\Util\StorageAsyncResult.cs" />
+    <Compile Include="Core\Util\StorageCommandAsyncResult.cs" />
     <Compile Include="Core\Util\StreamDescriptor.cs" />
     <Compile Include="Core\Util\StreamExtensions.cs" />
     <Compile Include="DoesServiceRequestAttribute.cs" />
+    <Compile Include="EncryptionAgent.cs" />
+    <Compile Include="EncryptionAlgorithm.cs" />
+    <Compile Include="EncryptionData.cs" />
     <Compile Include="ExceptionInfo.cs" />
+    <Compile Include="File\CloudFile.Common.cs" />
+    <Compile Include="File\CloudFile.cs" />
+    <Compile Include="File\CloudFileAttributes.cs" />
+    <Compile Include="File\CloudFileClient.Common.cs" />
+    <Compile Include="File\CloudFileClient.cs" />
+    <Compile Include="File\CloudFileDirectory.Common.cs" />
+    <Compile Include="File\CloudFileDirectory.cs" />
+    <Compile Include="File\CloudFileShare.Common.cs" />
+    <Compile Include="File\CloudFileShare.cs" />
+    <Compile Include="File\CloudFileStream.cs" />
+    <Compile Include="File\FileContinuationToken.cs" />
+    <Compile Include="File\FileDirectoryProperties.cs" />
+    <Compile Include="File\FileProperties.cs" />
+    <Compile Include="File\FileRange.cs" />
+    <Compile Include="File\FileReadStream.cs" />
+    <Compile Include="File\FileReadStreamBase.cs" />
+    <Compile Include="File\FileRequestOptions.cs" />
+    <Compile Include="File\FileResultSegment.cs" />
+    <Compile Include="File\FileSharePermissions.cs" />
+    <Compile Include="File\FileShareProperties.cs" />
+    <Compile Include="File\FileSharePublicAccessType.cs" />
+    <Compile Include="File\FileWriteStream.cs" />
+    <Compile Include="File\FileWriteStreamBase.cs" />
+    <Compile Include="File\IListFileItem.cs" />
+    <Compile Include="File\Protocol\DirectoryHttpResponseParsers.cs" />
+    <Compile Include="File\Protocol\DirectoryHttpWebRequestFactory.cs" />
+    <Compile Include="File\Protocol\FileAccessPolicyResponse.cs" />
+    <Compile Include="File\Protocol\FileErrorCodeStrings.cs" />
+    <Compile Include="File\Protocol\FileHttpResponseParsers.Common.cs" />
+    <Compile Include="File\Protocol\FileHttpResponseParsers.cs" />
+    <Compile Include="File\Protocol\FileHttpWebRequestFactory.cs" />
+    <Compile Include="File\Protocol\FileListingContext.cs" />
+    <Compile Include="File\Protocol\FileRangeWrite.cs" />
+    <Compile Include="File\Protocol\FileRequest.cs" />
+    <Compile Include="File\Protocol\FileServiceProperties.cs" />
+    <Compile Include="File\Protocol\FileShareEntry.cs" />
+    <Compile Include="File\Protocol\IListFileEntry.cs" />
+    <Compile Include="File\Protocol\ListFileDirectoryEntry.cs" />
+    <Compile Include="File\Protocol\ListFileEntry.cs" />
+    <Compile Include="File\Protocol\ListFilesAndDirectoriesResponse.cs" />
+    <Compile Include="File\Protocol\ListRangesResponse.cs" />
+    <Compile Include="File\Protocol\ListSharesResponse.cs" />
+    <Compile Include="File\Protocol\ShareHttpResponseParsers.cs" />
+    <Compile Include="File\Protocol\ShareHttpWebRequestFactory.cs" />
+    <Compile Include="File\Protocol\ShareStats.cs" />
+    <Compile Include="File\SharedAccessFileHeaders.cs" />
+    <Compile Include="File\SharedAccessFilePermissions.cs" />
+    <Compile Include="File\SharedAccessFilePolicies.cs" />
+    <Compile Include="File\SharedAccessFilePolicy.cs" />
+    <Compile Include="File\ShareListingDetails.cs" />
+    <Compile Include="File\ShareResultSegment.cs" />
     <Compile Include="IBufferManager.cs" />
+    <Compile Include="ICancellableAsyncResult.cs" />
     <Compile Include="IContinuationToken.cs" />
     <Compile Include="IPAddressOrRange.cs" />
     <Compile Include="IRequestOptions.cs" />
@@ -194,6 +274,7 @@
     <Compile Include="Queue\CloudQueue.cs" />
     <Compile Include="Queue\CloudQueueClient.Common.cs" />
     <Compile Include="Queue\CloudQueueClient.cs" />
+    <Compile Include="Queue\CloudQueueEncryptedMessage.cs" />
     <Compile Include="Queue\CloudQueueMessage.Common.cs" />
     <Compile Include="Queue\CloudQueueMessage.cs" />
     <Compile Include="Queue\MessageUpdateFields.cs" />
@@ -205,12 +286,14 @@
     <Compile Include="Queue\Protocol\QueueHttpRequestMessageFactory.cs" />
     <Compile Include="Queue\Protocol\QueueHttpResponseParsers.Common.cs" />
     <Compile Include="Queue\Protocol\QueueHttpResponseParsers.cs" />
+    <Compile Include="Queue\Protocol\QueueHttpWebRequestFactory.cs" />
     <Compile Include="Queue\Protocol\QueueListingContext.cs" />
     <Compile Include="Queue\Protocol\QueueListingDetails.cs" />
     <Compile Include="Queue\Protocol\QueueMessage.cs" />
     <Compile Include="Queue\Protocol\QueuePermissions.cs" />
     <Compile Include="Queue\Protocol\QueueRequest.cs" />
     <Compile Include="Queue\QueueContinuationToken.cs" />
+    <Compile Include="Queue\QueueEncryptionPolicy.cs" />
     <Compile Include="Queue\QueueMessageType.cs" />
     <Compile Include="Queue\QueueRequestOptions.cs" />
     <Compile Include="Queue\QueueResultSegment.cs" />
@@ -241,11 +324,11 @@
     <Compile Include="Shared\Protocol\CorsRule.cs" />
     <Compile Include="Shared\Protocol\GeoReplicationStats.cs" />
     <Compile Include="Shared\Protocol\GeoReplicationStatus.cs" />
-    <Compile Include="Shared\Protocol\HttpClientFactory.cs" />
     <Compile Include="Shared\Protocol\HttpContentFactory.cs" />
     <Compile Include="Shared\Protocol\HttpRequestMessageFactory.cs" />
     <Compile Include="Shared\Protocol\HttpResponseParsers.Common.cs" />
     <Compile Include="Shared\Protocol\HttpResponseParsers.cs" />
+    <Compile Include="Shared\Protocol\HttpWebRequestFactory.cs" />
     <Compile Include="Shared\Protocol\ListingContext.cs" />
     <Compile Include="Shared\Protocol\LoggingOperations.cs" />
     <Compile Include="Shared\Protocol\LoggingProperties.cs" />
@@ -259,6 +342,7 @@
     <Compile Include="Shared\Protocol\ServiceProperties.cs" />
     <Compile Include="Shared\Protocol\ServiceStats.cs" />
     <Compile Include="Shared\Protocol\StorageErrorCodeStrings.cs" />
+    <Compile Include="Shared\Protocol\WebRequestExtensions.cs" />
     <Compile Include="StorageException.cs" />
     <Compile Include="StorageExtendedErrorInformation.cs" />
     <Compile Include="StorageLocation.cs" />
@@ -268,8 +352,47 @@
     <Compile Include="Table\CloudTable.cs" />
     <Compile Include="Table\CloudTableClient.Common.cs" />
     <Compile Include="Table\CloudTableClient.cs" />
+    <Compile Include="Table\DataServices\ALinqExpressionVisitor.cs" />
+    <Compile Include="Table\DataServices\ClientConvert.cs" />
+    <Compile Include="Table\DataServices\Common.cs" />
+    <Compile Include="Table\DataServices\DataServiceExpressionVisitor.cs" />
+    <Compile Include="Table\DataServices\DataServicesResponseAdapterMessage.cs" />
+    <Compile Include="Table\DataServices\EntityResolverQueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\Evaluator.cs" />
+    <Compile Include="Table\DataServices\ExpressionNormalizer.cs" />
+    <Compile Include="Table\DataServices\ExpressionParser.cs" />
+    <Compile Include="Table\DataServices\ExpressionWriter.cs" />
+    <Compile Include="Table\DataServices\FilterQueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\InputBinder.cs" />
+    <Compile Include="Table\DataServices\InputReferenceExpression.cs" />
+    <Compile Include="Table\DataServices\MemberAssignmentAnalysis.cs" />
+    <Compile Include="Table\DataServices\NavigationPropertySingletonExpression.cs" />
+    <Compile Include="Table\DataServices\OperationContextQueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\PathBox.cs" />
+    <Compile Include="Table\DataServices\ProjectionAnalyzer.cs" />
+    <Compile Include="Table\DataServices\ProjectionQueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\ProjectionRewriter.cs" />
+    <Compile Include="Table\DataServices\QueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\ReferenceEqualityComparer.cs" />
+    <Compile Include="Table\DataServices\ReflectionUtil.cs" />
+    <Compile Include="Table\DataServices\RequestOptionsQueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\ResourceBinder.cs" />
+    <Compile Include="Table\DataServices\ResourceExpression.cs" />
+    <Compile Include="Table\DataServices\ResourceExpressionType.cs" />
+    <Compile Include="Table\DataServices\ResourceSetExpression.cs" />
+    <Compile Include="Table\DataServices\TableQueryableExtensions.cs" />
+    <Compile Include="Table\DataServices\TableServiceContext.cs" />
+    <Compile Include="Table\DataServices\TableServiceEntity.cs" />
+    <Compile Include="Table\DataServices\TableServiceExtensions.cs" />
+    <Compile Include="Table\DataServices\TableServiceQuery.cs" />
+    <Compile Include="Table\DataServices\TakeQueryOptionExpression.cs" />
+    <Compile Include="Table\DataServices\TypeSystem.cs" />
+    <Compile Include="Table\DataServices\UriHelper.cs" />
+    <Compile Include="Table\DataServices\WebConvert.cs" />
+    <Compile Include="Table\DataServices\XmlConstants.cs" />
     <Compile Include="Table\DynamicTableEntity.cs" />
     <Compile Include="Table\EdmType.cs" />
+    <Compile Include="Table\EncryptPropertyAttribute.cs" />
     <Compile Include="Table\EntityProperty.cs" />
     <Compile Include="Table\EntityReadFlags.cs" />
     <Compile Include="Table\EntityResolver.cs" />
@@ -278,13 +401,17 @@
     <Compile Include="Table\ITableEntity.cs" />
     <Compile Include="Table\Protocol\HttpRequestAdapterMessage.cs" />
     <Compile Include="Table\Protocol\HttpResponseAdapterMessage.cs" />
+    <Compile Include="Table\Protocol\HttpWebRequestAdapterMessage.cs" />
     <Compile Include="Table\Protocol\TableAccessPolicyResponse.cs" />
     <Compile Include="Table\Protocol\TableConstants.cs" />
     <Compile Include="Table\Protocol\TableErrorCodeStrings.cs" />
     <Compile Include="Table\Protocol\TableHttpRequestMessageFactory.cs" />
+    <Compile Include="Table\Protocol\TableHttpWebRequestFactory.cs" />
+    <Compile Include="Table\Protocol\TableHttpWebResponseParsers.cs" />
     <Compile Include="Table\Protocol\TableOperationHttpRequestFactory.cs" />
     <Compile Include="Table\Protocol\TableOperationHttpResponseParsers.cs" />
     <Compile Include="Table\Protocol\TableRequest.cs" />
+    <Compile Include="Table\Protocol\TableUtilities.cs" />
     <Compile Include="Table\QueryComparisons.cs" />
     <Compile Include="Table\SharedAccessTablePermissions.cs" />
     <Compile Include="Table\SharedAccessTablePolicies.cs" />
@@ -292,6 +419,7 @@
     <Compile Include="Table\TableBatchOperation.Common.cs" />
     <Compile Include="Table\TableBatchOperation.cs" />
     <Compile Include="Table\TableContinuationToken.cs" />
+    <Compile Include="Table\TableEncryptionPolicy.cs" />
     <Compile Include="Table\TableEntity.cs" />
     <Compile Include="Table\TableOperation.Common.cs" />
     <Compile Include="Table\TableOperation.cs" />
@@ -302,7 +430,7 @@
     <Compile Include="Table\TableQuery.Common.cs" />
     <Compile Include="Table\TableQuery.cs" />
     <Compile Include="Table\TableQueryGeneric.Common.cs" />
-    <Compile Include="Table\TableQueryGeneric.cs" />
+    <Compile Include="Table\TableQueryNonGeneric.cs" />
     <Compile Include="Table\TableQueryProvider.cs" />
     <Compile Include="Table\TableQuerySegment.cs" />
     <Compile Include="Table\TableQuerySegmentNonGeneric.cs" />
@@ -313,6 +441,7 @@
     <Compile Include="Table\TableStorageEntityContainer.cs" />
     <Compile Include="Table\TableStorageModel.cs" />
     <Compile Include="TaskExtension.cs" />
+    <Compile Include="WrappedKey.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Protocol\" />

@@ -70,7 +70,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Etag", Justification = "Reviewed: Etag can be used for identifier names.")]
         public string Etag { get; internal set; }
 
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
         /// <summary>
         /// The number of bytes read from the response body for the given request
         /// </summary>
@@ -80,7 +79,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// The number of bytes written to the request body for a given request
         /// </summary>
         public long EgressBytes { get; set; }
-#endif
+
         /// <summary>
         /// Gets the request date.
         /// </summary>

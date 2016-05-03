@@ -19,9 +19,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
 {
     using System;
 
-#if !(ASPNET_K || PORTABLE)
-    using System.Runtime.InteropServices.WindowsRuntime;
-#endif
     /// <summary>
     /// Represents a message in the Windows Azure Queue service.
     /// </summary>
@@ -31,31 +28,22 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
         /// Initializes a new instance of the <see cref="CloudQueueMessage"/> class with the given byte array.
         /// </summary>
         /// <param name="content">The content of the message as a byte array.</param>
-        /// <returns>The new message as a <see cref="CloudQueueMessage"/> object.</returns>
-#if ASPNET_K || PORTABLE
-        public static CloudQueueMessage CreateCloudQueueMessageFromByteArray(byte[] content)
-#else
-        public static CloudQueueMessage CreateCloudQueueMessageFromByteArray([ReadOnlyArray] byte[] content)
-#endif
+        public CloudQueueMessage(byte[] content)
         {
-            CloudQueueMessage message = new CloudQueueMessage(null);
-            message.SetMessageContent(content);
-            return message;
+            this.SetMessageContent(content);
+
+            // While binary messages will be Base64-encoded and we could validate the message size here,
+            // for consistency, we leave it to CloudQueue so that we have a central place for this logic.
         }
 
         /// <summary>
         /// Sets the content of this message.
         /// </summary>
-        /// <param name="content">The new message content.</param>
-#if ASPNET_K || PORTABLE
+        /// <param name="content">The content of the message as a byte array.</param>
         public void SetMessageContent(byte[] content)
-#else
-        [Windows.Foundation.Metadata.DefaultOverloadAttribute]
-        public void SetMessageContent([ReadOnlyArray] byte[] content)
-#endif
         {
-            this.RawString = Convert.ToBase64String(content);
-            this.MessageType = QueueMessageType.Base64Encoded;
+            this.RawBytes = content;
+            this.MessageType = QueueMessageType.RawBytes;
         }
     }
 }

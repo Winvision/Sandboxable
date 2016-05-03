@@ -56,10 +56,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             RetryPolicy = new NoRetry(),
             AbsorbConditionalErrorsOnRetry = false,
 
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
+
             EncryptionPolicy = null,
             RequireEncryption = null,
-#endif
+
             LocationMode = RetryPolicies.LocationMode.PrimaryOnly,
             ServerTimeout = null,
             MaximumExecutionTime = null,
@@ -125,7 +125,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 ?? serviceClient.DefaultRequestOptions.AbsorbConditionalErrorsOnRetry 
                 ?? BaseDefaultRequestOptions.AbsorbConditionalErrorsOnRetry;
 
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
             modifiedOptions.EncryptionPolicy = 
                 modifiedOptions.EncryptionPolicy 
                 ?? serviceClient.DefaultRequestOptions.EncryptionPolicy 
@@ -135,7 +134,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 modifiedOptions.RequireEncryption 
                 ?? serviceClient.DefaultRequestOptions.RequireEncryption 
                 ?? BaseDefaultRequestOptions.RequireEncryption;
-#endif
 
             modifiedOptions.LocationMode = 
                 modifiedOptions.LocationMode 
@@ -213,7 +211,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             }
         }
 
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
         internal void AssertNoEncryptionPolicyOrStrictMode()
         {
             // Throw if an encryption policy is set and encryption validation is on
@@ -232,7 +229,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 throw new InvalidOperationException(SR.EncryptionPolicyMissingInStrictMode);
             }
         }
-#endif
 
         /// <summary>
         ///  Gets or sets the absolute expiry time across all potential retries for the request. 
@@ -245,7 +241,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <value>An object of type <see cref="IRetryPolicy"/>.</value>
         public IRetryPolicy RetryPolicy { get; set; }
 
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
         /// <summary>
         /// Gets or sets the encryption policy for the request.
         /// </summary>
@@ -263,7 +258,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <value>Use <c>true</c> to skip validation; otherwise, <c>false</c>.</value>
         internal bool SkipEncryptionPolicyValidation { get; set; }
-#endif
 
         /// <summary>
         /// Gets or sets a value that indicates whether a conditional failure should be absorbed on a retry attempt

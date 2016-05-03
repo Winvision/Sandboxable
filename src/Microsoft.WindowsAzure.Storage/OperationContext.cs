@@ -183,19 +183,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         #endregion
 
         #region Times
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        /// <summary>
-        /// Gets or sets the start time of the operation.
-        /// </summary>
-        /// <value>The start time of the operation.</value>
-        public System.DateTimeOffset StartTime { get; set; }
-
-        /// <summary>
-        /// Gets or sets the end time of the operation.
-        /// </summary>
-        /// <value>The end time of the operation.</value>
-        public System.DateTimeOffset EndTime { get; set; }
-#else
         /// <summary>
         /// Gets or sets the start time of the operation.
         /// </summary>
@@ -207,7 +194,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// </summary>
         /// <value>A <see cref="DateTime"/> value indicating the end time of the operation.</value>
         public DateTime EndTime { get; set; }
-#endif
         #endregion
 
         #region Request Results

@@ -17,7 +17,7 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
 {
-    using Microsoft.WindowsAzure.Storage;
+    using Sandboxable.Microsoft.WindowsAzure.Storage;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Auth;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth;

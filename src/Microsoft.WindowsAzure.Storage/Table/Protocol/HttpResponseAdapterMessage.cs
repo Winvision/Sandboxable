@@ -16,28 +16,27 @@
 // -----------------------------------------------------------------------------------------
 
 using Microsoft.Data.OData;
-
+    
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 {
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
-    using System.Net.Http;
+    using System.Net;
     using System.Threading.Tasks;
 
     internal class HttpResponseAdapterMessage : IODataResponseMessage
     {
-        private HttpResponseMessage resp = null;
+        private HttpWebResponse resp = null;
         private Stream str = null;
         private string responseContentType = null;
 
-        public HttpResponseAdapterMessage(HttpResponseMessage resp, Stream str)
+        public HttpResponseAdapterMessage(HttpWebResponse resp, Stream str)
             : this(resp, str, null /* responseContentType */)
         {
         }
 
-        public HttpResponseAdapterMessage(HttpResponseMessage resp, Stream str, string responseContentType)
+        public HttpResponseAdapterMessage(HttpWebResponse resp, Stream str, string responseContentType)
         {
             this.resp = resp;
             this.str = str;
@@ -51,27 +50,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 
         public string GetHeader(string headerName)
         {
-            switch (headerName)
+            if (headerName == "Content-Type")
             {
-                case "Content-Type":
-                    return this.responseContentType != null ? this.responseContentType : (this.resp.Content.Headers.ContentType != null ? this.resp.Content.Headers.ContentType.ToString() : null);
-                case "Content-Range":
-                    return this.resp.Content.Headers.ContentRange != null ? this.resp.Content.Headers.ContentRange.ToString() : null;
-                case "Content-MD5":
-                    return this.resp.Content.Headers.ContentMD5 != null ? Convert.ToBase64String(this.resp.Content.Headers.ContentMD5) : null;
-                case "Content-Location":
-                    return this.resp.Content.Headers.ContentLocation != null ? this.resp.Content.Headers.ContentLocation.ToString() : null;
-                case "Content-Length":
-                    return this.resp.Content.Headers.ContentLength != null ? this.resp.Content.Headers.ContentLength.ToString() : null;
-                case "Content-Language":
-                    return this.resp.Content.Headers.ContentLanguage != null ? this.resp.Content.Headers.ContentLanguage.ToString() : null;
-                case "Content-Encoding":
-                    return this.resp.Content.Headers.ContentEncoding != null ? this.resp.Content.Headers.ContentEncoding.ToString() : null;
-                case "Content-Disposition":
-                    return this.resp.Content.Headers.ContentDisposition != null ? this.resp.Content.Headers.ContentDisposition.ToString() : null;
-                default:
-                    return this.resp.Content.Headers.Contains(headerName) ? this.resp.Content.Headers.GetValues(headerName).First() : null;
+                if (this.responseContentType != null)
+                {
+                    return this.responseContentType;
+                }
+                else
+                {
+                    return this.resp.ContentType;
+                }
             }
+
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
+            if (headerName == "Content-Encoding")
+            {
+                return this.resp.ContentEncoding;
+            }
+#endif
+
+            return this.resp.Headers[headerName];
         }
 
         public Stream GetStream()
@@ -81,7 +79,24 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 
         public IEnumerable<KeyValuePair<string, string>> Headers
         {
-            get { return this.resp.Headers.Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value.FirstOrDefault())); }
+            get
+            {
+                List<KeyValuePair<string, string>> retHeaders = new List<KeyValuePair<string, string>>();
+
+                foreach (string key in this.resp.Headers.AllKeys)
+                {
+                    if (key == "Content-Type" && this.responseContentType != null)
+                    {
+                        retHeaders.Add(new KeyValuePair<string, string>(key, this.responseContentType));
+                    }
+                    else
+                    {
+                        retHeaders.Add(new KeyValuePair<string, string>(key, this.resp.Headers[key]));
+                    }
+                }
+
+                return retHeaders;
+            }
         }
 
         public void SetHeader(string headerName, string headerValue)

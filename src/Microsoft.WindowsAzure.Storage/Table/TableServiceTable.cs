@@ -17,7 +17,6 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
 {
-#if WINDOWS_DESKTOP && !WINDOWS_PHONE
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol;
     using System;
@@ -107,5 +106,4 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             return this.TableName.GetHashCode();
         }
     }
-#endif
 }
