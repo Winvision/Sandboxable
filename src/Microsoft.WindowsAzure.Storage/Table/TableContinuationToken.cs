@@ -17,7 +17,7 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
 {
-    using Microsoft.WindowsAzure.Storage;
+    using Sandboxable.Microsoft.WindowsAzure.Storage;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;

@@ -1,5 +1,5 @@
-﻿// -----------------------------------------------------------------------------------------
-// <copyright file="TableOperationHttpRequestFactory.cs" company="Microsoft">
+﻿//-----------------------------------------------------------------------
+// <copyright file="TableOperationHttpWebRequestFactory.cs" company="Microsoft">
 //    Copyright 2013 Microsoft Corporation
 // 
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,25 +16,23 @@
 // -----------------------------------------------------------------------------------------
 
 using Microsoft.Data.OData;
-
+    
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 {
-    using Sandboxable.Microsoft.WindowsAzure.Storage.Auth;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core;
-    using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth;
-    using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
-    using System.Net.Http;
+    using System.Net;
 
-    internal class TableOperationHttpRequestMessageFactory
+    internal static class TableOperationHttpWebRequestFactory
     {
-        internal static StorageRequestMessage BuildRequestCore(Uri uri, UriQueryBuilder builder, HttpMethod method, int? timeout, HttpContent content, OperationContext ctx, ICanonicalizer canonicalizer, StorageCredentials credentials)
+        internal static HttpWebRequest BuildRequestCore(Uri uri, UriQueryBuilder builder, string method, int? timeout, bool useVersionHeader, OperationContext ctx)
         {
-            StorageRequestMessage msg = HttpRequestMessageFactory.CreateRequestMessage(method, uri, timeout, builder, content, ctx, canonicalizer, credentials);
+            HttpWebRequest msg = HttpWebRequestFactory.CreateWebRequest(method, uri, timeout, builder, useVersionHeader, ctx);
 
             msg.Headers.Add("Accept-Charset", "UTF-8");
             msg.Headers.Add("MaxDataServiceVersion", "3.0;NetFx");
@@ -42,31 +40,35 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
             return msg;
         }
 
-        internal static StorageRequestMessage BuildRequestForTableQuery(Uri uri, UriQueryBuilder builder, int? timeout, HttpContent content, OperationContext ctx, TablePayloadFormat payloadFormat, ICanonicalizer canonicalizer, StorageCredentials credentials)
+        internal static HttpWebRequest BuildRequestForTableQuery(Uri uri, UriQueryBuilder builder, int? timeout, bool useVersionHeader, OperationContext ctx, TablePayloadFormat payloadFormat)
         {
-            StorageRequestMessage msg = BuildRequestCore(uri, builder, HttpMethod.Get, timeout, content, ctx, canonicalizer, credentials);
-            
+            HttpWebRequest msg = BuildRequestCore(uri, builder, "GET", timeout, useVersionHeader, ctx);
+
             // Set Accept and Content-Type based on the payload format.
             SetAcceptHeaderForHttpWebRequest(msg, payloadFormat);
             Logger.LogInformational(ctx, SR.PayloadFormat, payloadFormat);
             return msg;
         }
 
-        internal static StorageRequestMessage BuildRequestForTableOperation<T>(RESTCommand<T> cmd, Uri uri, UriQueryBuilder builder, int? timeout, TableOperation operation, CloudTableClient client, HttpContent content, OperationContext ctx, TablePayloadFormat payloadFormat, ICanonicalizer canonicalizer, StorageCredentials credentials)
+        internal static Tuple<HttpWebRequest, Stream> BuildRequestForTableOperation(Uri uri, UriQueryBuilder builder, IBufferManager bufferManager, int? timeout, TableOperation operation, bool useVersionHeader, OperationContext ctx, TableRequestOptions options, string accountName)
         {
-            StorageRequestMessage msg = BuildRequestCore(uri, builder, operation.HttpMethod, timeout, content, ctx, canonicalizer, credentials);
-            
+            HttpWebRequest msg = BuildRequestCore(uri, builder, operation.HttpMethod, timeout, useVersionHeader, ctx);
+
+            TablePayloadFormat payloadFormat = options.PayloadFormat.Value;
+
             // Set Accept and Content-Type based on the payload format.
             SetAcceptHeaderForHttpWebRequest(msg, payloadFormat);
             Logger.LogInformational(ctx, SR.PayloadFormat, payloadFormat);
 
-            if (!operation.HttpMethod.Equals("HEAD") && !operation.HttpMethod.Equals("GET"))
+            if (operation.HttpMethod != "HEAD" && operation.HttpMethod != "GET")
             {
-                SetContentTypeForHttpWebRequest(msg);
+                msg.ContentType = Constants.JsonContentTypeHeaderValue;
             }
 
             if (operation.OperationType == TableOperationType.InsertOrMerge || operation.OperationType == TableOperationType.Merge)
             {
+                options.AssertNoEncryptionPolicyOrStrictMode();
+
                 // post tunnelling
                 msg.Headers.Add("X-HTTP-Method", "MERGE");
             }
@@ -76,7 +78,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
                 operation.OperationType == TableOperationType.Replace ||
                 operation.OperationType == TableOperationType.Merge)
             {
-                msg.Headers.Add("If-Match", operation.Entity.ETag);
+                if (operation.Entity.ETag != null)
+                {
+                    msg.Headers.Add("If-Match", operation.Entity.ETag);
+                }
             }
 
             // Prefer header
@@ -84,7 +89,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
             {
                 msg.Headers.Add("Prefer", operation.EchoContent ? "return-content" : "return-no-content");
             }
-
+            
             if (operation.OperationType == TableOperationType.Insert ||
                 operation.OperationType == TableOperationType.Merge ||
                 operation.OperationType == TableOperationType.InsertOrMerge ||
@@ -98,27 +103,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
                     Version = TableConstants.ODataProtocolVersion // set the Odata version to use when writing the entry 
                 };
 
-                HttpRequestAdapterMessage adapterMsg = new HttpRequestAdapterMessage(msg, client.BufferManager, (int)Constants.KB);
-                if (!operation.HttpMethod.Equals("HEAD") && !operation.HttpMethod.Equals("GET"))
+                HttpWebRequestAdapterMessage adapterMsg = new HttpWebRequestAdapterMessage(msg, bufferManager);
+                if (operation.HttpMethod != "HEAD" && operation.HttpMethod != "GET")
                 {
                     adapterMsg.SetHeader(Constants.HeaderConstants.PayloadContentTypeHeader, Constants.JsonContentTypeHeaderValue);
                 }
-
-                cmd.StreamToDispose = adapterMsg.GetStream();
-
-                ODataMessageWriter odataWriter = new ODataMessageWriter(adapterMsg, writerSettings, new TableStorageModel(client.AccountName));
+                
+                ODataMessageWriter odataWriter = new ODataMessageWriter(adapterMsg, writerSettings, new TableStorageModel(accountName));
                 ODataWriter writer = odataWriter.CreateODataEntryWriter();
-                WriteOdataEntity(operation.Entity, operation.OperationType, ctx, writer);
+                WriteOdataEntity(operation.Entity, operation.OperationType, ctx, writer, options);
 
-                return adapterMsg.GetPopulatedMessage();
+                return new Tuple<HttpWebRequest, Stream>(adapterMsg.GetPopulatedMessage(), adapterMsg.GetStream());
             }
 
-            return msg;
+            return new Tuple<HttpWebRequest, Stream>(msg, null);
         }
 
-        internal static StorageRequestMessage BuildRequestForTableBatchOperation<T>(RESTCommand<T> cmd, Uri uri, UriQueryBuilder builder, int? timeout, string tableName, TableBatchOperation batch, CloudTableClient client, HttpContent content, OperationContext ctx, TablePayloadFormat payloadFormat, ICanonicalizer canonicalizer, StorageCredentials credentials)
+        internal static Tuple<HttpWebRequest, Stream> BuildRequestForTableBatchOperation(Uri uri, UriQueryBuilder builder, IBufferManager bufferManager, int? timeout, string tableName, TableBatchOperation batch, bool useVersionHeader, OperationContext ctx, TableRequestOptions options, string accountName)
         {
-            StorageRequestMessage msg = BuildRequestCore(NavigationHelper.AppendPathToSingleUri(uri, "$batch"), builder, HttpMethod.Post, timeout, content, ctx, canonicalizer, credentials);
+            HttpWebRequest msg = BuildRequestCore(NavigationHelper.AppendPathToSingleUri(uri, "$batch"), builder, "POST", timeout, useVersionHeader, ctx);
+            TablePayloadFormat payloadFormat = options.PayloadFormat.Value;
             Logger.LogInformational(ctx, SR.PayloadFormat, payloadFormat);
 
             // create the writer, indent for readability of the examples.  
@@ -128,8 +132,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
                 Version = TableConstants.ODataProtocolVersion // set the Odata version to use when writing the entry 
             };
 
-            HttpRequestAdapterMessage adapterMsg = new HttpRequestAdapterMessage(msg, client.BufferManager, 64 * (int)Constants.KB);
-            cmd.StreamToDispose = adapterMsg.GetStream();
+            HttpWebRequestAdapterMessage adapterMsg = new HttpWebRequestAdapterMessage(msg, bufferManager);
 
             // Start Batch
             ODataMessageWriter odataWriter = new ODataMessageWriter(adapterMsg, writerSettings);
@@ -148,7 +151,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 
             foreach (TableOperation operation in batch)
             {
-                string httpMethod = operation.OperationType == TableOperationType.Merge || operation.OperationType == TableOperationType.InsertOrMerge ? "MERGE" : operation.HttpMethod.Method;
+                string httpMethod = operation.HttpMethod;
+                if (operation.OperationType == TableOperationType.Merge || operation.OperationType == TableOperationType.InsertOrMerge)
+                {
+                    options.AssertNoEncryptionPolicyOrStrictMode();
+                    httpMethod = "MERGE";
+                }
 
                 ODataBatchOperationRequestMessage mimePartMsg = batchWriter.CreateOperationRequestMessage(httpMethod, operation.GenerateRequestURI(uri, tableName));
                 SetAcceptAndContentTypeForODataBatchMessage(mimePartMsg, payloadFormat);
@@ -166,14 +174,14 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
                 {
                     mimePartMsg.SetHeader("Prefer", operation.EchoContent ? "return-content" : "return-no-content");
                 }
-
+                
                 if (operation.OperationType != TableOperationType.Delete && operation.OperationType != TableOperationType.Retrieve)
                 {
-                    using (ODataMessageWriter batchEntryWriter = new ODataMessageWriter(mimePartMsg, writerSettings, new TableStorageModel(client.AccountName)))
+                    using (ODataMessageWriter batchEntryWriter = new ODataMessageWriter(mimePartMsg, writerSettings, new TableStorageModel(accountName)))
                     {
                         // Write entity
                         ODataWriter entryWriter = batchEntryWriter.CreateODataEntryWriter();
-                        WriteOdataEntity(operation.Entity, operation.OperationType, ctx, entryWriter);
+                        WriteOdataEntity(operation.Entity, operation.OperationType, ctx, entryWriter, options);
                     }
                 }
             }
@@ -188,21 +196,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
             batchWriter.WriteEndBatch();
             batchWriter.Flush();
 
-            return adapterMsg.GetPopulatedMessage();
+            return new Tuple<HttpWebRequest, Stream>(adapterMsg.GetPopulatedMessage(), adapterMsg.GetStream());
         }
 
-        private static void WriteOdataEntity(ITableEntity entity, TableOperationType operationType, OperationContext ctx, ODataWriter writer)
+        private static void WriteOdataEntity(ITableEntity entity, TableOperationType operationType, OperationContext ctx, ODataWriter writer, TableRequestOptions options)
         {
             ODataEntry entry = new ODataEntry()
             {
-                Properties = GetPropertiesWithKeys(entity, ctx, operationType),
+                Properties = GetPropertiesWithKeys(entity, ctx, operationType, options),
                 TypeName = "account.sometype"
             };
-
-            if (operationType != TableOperationType.Insert && operationType != TableOperationType.Retrieve)
-            {
-                entry.ETag = entity.ETag;
-            }
 
             entry.SetAnnotation(new SerializationTypeNameAnnotation { TypeName = null });
             writer.WriteStart(entry);
@@ -212,56 +215,59 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 
         #region TableEntity Serialization Helpers
 
-        internal static List<ODataProperty> GetPropertiesFromDictionary(IDictionary<string, EntityProperty> properties)
+        internal static IEnumerable<ODataProperty> GetPropertiesFromDictionary(IDictionary<string, EntityProperty> properties, TableRequestOptions options, string partitionKey, string rowKey)
         {
-            return properties.Select(kvp => new ODataProperty() { Name = kvp.Key, Value = kvp.Value.PropertyAsObject }).ToList();
+            // Check if encryption policy is set and invoke EncryptEnity if it is set.
+            if (options != null)
+            {
+                options.AssertPolicyIfRequired();
+
+                if (options.EncryptionPolicy != null)
+                {
+                    properties = options.EncryptionPolicy.EncryptEntity(properties, partitionKey, rowKey, options.EncryptionResolver);
+                }
+            }
+
+            return properties.Select(kvp => new ODataProperty() { Name = kvp.Key, Value = kvp.Value.PropertyAsObject });
         }
 
-        internal static List<ODataProperty> GetPropertiesWithKeys(ITableEntity entity, OperationContext operationContext, TableOperationType operationType)
+        internal static IEnumerable<ODataProperty> GetPropertiesWithKeys(ITableEntity entity, OperationContext operationContext, TableOperationType operationType, TableRequestOptions options)
         {
-            List<ODataProperty> retProps = GetPropertiesFromDictionary(entity.WriteEntity(operationContext));
             if (operationType == TableOperationType.Insert)
             {
                 if (entity.PartitionKey != null)
                 {
-                    retProps.Add(new ODataProperty() { Name = TableConstants.PartitionKey, Value = entity.PartitionKey });
+                    yield return new ODataProperty() { Name = TableConstants.PartitionKey, Value = entity.PartitionKey };
                 }
 
                 if (entity.RowKey != null)
                 {
-                    retProps.Add(new ODataProperty() { Name = TableConstants.RowKey, Value = entity.RowKey });
+                    yield return new ODataProperty() { Name = TableConstants.RowKey, Value = entity.RowKey };
                 }
             }
 
-            return retProps;
+            foreach (ODataProperty property in GetPropertiesFromDictionary(entity.WriteEntity(operationContext), options, entity.PartitionKey, entity.RowKey))
+            {
+                yield return property;
+            }
         }
         #endregion
 
         #region Set Headers
-        private static void SetAcceptHeaderForHttpWebRequest(StorageRequestMessage msg, TablePayloadFormat payloadFormat)
+        private static void SetAcceptHeaderForHttpWebRequest(HttpWebRequest msg, TablePayloadFormat payloadFormat)
         {
             if (payloadFormat == TablePayloadFormat.JsonFullMetadata)
             {
-                msg.Headers.Add(Constants.HeaderConstants.PayloadAcceptHeader, Constants.JsonFullMetadataAcceptHeaderValue);
+                msg.Accept = Constants.JsonFullMetadataAcceptHeaderValue;
             }
             else if (payloadFormat == TablePayloadFormat.Json)
             {
-                msg.Headers.Add(Constants.HeaderConstants.PayloadAcceptHeader, Constants.JsonLightAcceptHeaderValue);
+                msg.Accept = Constants.JsonLightAcceptHeaderValue;
             }
             else if (payloadFormat == TablePayloadFormat.JsonNoMetadata)
             {
-                msg.Headers.Add(Constants.HeaderConstants.PayloadAcceptHeader, Constants.JsonNoMetadataAcceptHeaderValue);
+                msg.Accept = Constants.JsonNoMetadataAcceptHeaderValue;
             }
-        }
-
-        private static void SetContentTypeForHttpWebRequest(StorageRequestMessage msg)
-        {
-            if (msg.Content == null || msg.Content.Headers == null)
-            {
-                return;
-            }
-
-            msg.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(Constants.JsonContentTypeHeaderValue);
         }
 
         private static void SetAcceptAndContentTypeForODataBatchMessage(ODataBatchOperationRequestMessage mimePartMsg, TablePayloadFormat payloadFormat)

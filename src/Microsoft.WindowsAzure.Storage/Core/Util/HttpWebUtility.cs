@@ -22,9 +22,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
     using System.Globalization;
     using System.Linq;
 
-#if WINDOWS_DESKTOP 
     using System.Net;
-#endif
 
     /// <summary>
     /// Provides helper functions for http request/response processing. 
@@ -118,7 +116,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
         }
 #endif
 
-#if WINDOWS_DESKTOP 
         /// <summary>
         /// Try to get the value of the specified header name.
         /// </summary>
@@ -138,6 +135,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
                 return value;
             }
         }
-#endif
     }
 }

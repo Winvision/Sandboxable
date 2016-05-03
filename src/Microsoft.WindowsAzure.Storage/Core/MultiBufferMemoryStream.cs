@@ -24,11 +24,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
     using System.Globalization;
     using System.IO;
 
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-    using System.Threading;
-    using System.Threading.Tasks;
-#endif
-
     /// <summary>
     /// Creates a multi-buffer stream whose backing store is memory.
     /// </summary>
@@ -175,7 +170,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
             return this.ReadInternal(buffer, offset, count);
         }
 
-#if WINDOWS_DESKTOP 
         /// <summary>
         /// Begins an asynchronous read operation.
         /// </summary>
@@ -217,22 +211,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
             result.End();
             return result.Result;
         }
-#endif
-
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        /// <summary>
-        /// Asynchronously reads a sequence of bytes from the current stream and advances the position within the stream by the number of bytes read.
-        /// </summary>
-        /// <param name="buffer">The buffer to write the data into.</param>
-        /// <param name="offset">The byte offset in buffer at which to begin writing data from the stream.</param>
-        /// <param name="count">The maximum number of bytes to read.</param>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <returns>A task that represents the asynchronous read operation.</returns>
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(this.Read(buffer, offset, count));
-        }
-#endif
 
         /// <summary>
         /// Sets the position within the current stream.
@@ -305,7 +283,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
             this.length = Math.Max(this.length, this.position);
         }
 
-#if WINDOWS_DESKTOP 
         /// <summary>
         /// Begins an asynchronous write operation.
         /// </summary>
@@ -345,43 +322,14 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
             StorageAsyncResult<NullType> result = (StorageAsyncResult<NullType>)asyncResult;
             result.End();
         }
-#endif
-
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        /// <summary>
-        /// Asynchronously writes a sequence of bytes to the current stream and advances the current position within this stream by the number of bytes written.
-        /// </summary>
-        /// <param name="buffer">The buffer to write data from.</param>
-        /// <param name="offset">The zero-based byte offset in buffer from which to begin copying bytes to the stream.</param>
-        /// <param name="count">The maximum number of bytes to write.</param>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <returns>A task that represents the asynchronous write operation.</returns>
-        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            this.Write(buffer, offset, count);
-            return Task.FromResult(true);
-        }
-#endif
+        
         /// <summary>
         /// Does not perform any operation, as the stream is an in-memory stream.
         /// </summary>
         public override void Flush()
         {
         }
-
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        /// <summary>
-        /// Does not perform any operation as it's an in-memory stream.
-        /// </summary>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <returns>A task that represents the asynchronous flush operation.</returns>
-        public override Task FlushAsync(CancellationToken cancellationToken)
-        {
-            return Task.FromResult(true);
-        }
-#endif
-
-#if WINDOWS_DESKTOP 
+        
         /// <summary>
         /// Reads the bytes from the current stream and writes them to another stream. This method writes directly to the destination stream, 
         /// rather than copying the data into a temporary buffer.
@@ -542,54 +490,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
             StorageAsyncResult<NullType> result = (StorageAsyncResult<NullType>)asyncResult;
             result.End();
         }
-#endif
-
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        /// <summary>
-        /// Reads the bytes from the current stream and writes them to another stream. This method writes directly to the destination stream, 
-        /// rather than copying the data into a temporary buffer.
-        /// </summary>
-        /// <param name="destination">The stream to which the contents of the current stream will be copied.</param>
-        /// <param name="expiryTime">A DateTime indicating the expiry time.</param>
-        /// <returns>A task that represents the asynchronous copy operation.</returns>
-        public async Task FastCopyToAsync(Stream destination, DateTime? expiryTime)
-        {
-            CommonUtility.AssertNotNull("destination", destination);
-
-            // Maximum amount you can read is from current spot to the end.
-            long leftToRead = this.Length - this.Position;
-
-            try
-            {
-                while (leftToRead != 0)
-                {
-                    if (expiryTime.HasValue && DateTime.Now.CompareTo(expiryTime.Value) > 0)
-                    {
-                        throw new TimeoutException();
-                    }
-
-                    ArraySegment<byte> currentBlock = this.GetCurrentBlock();
-
-                    // Copy the block
-                    int blockReadLength = (int)Math.Min(leftToRead, currentBlock.Count);
-                    await destination.WriteAsync(currentBlock.Array, currentBlock.Offset, blockReadLength);
-
-                    this.AdvancePosition(ref leftToRead, blockReadLength);
-                }
-            }
-            catch (Exception)
-            {
-                if (expiryTime.HasValue && DateTime.Now.CompareTo(expiryTime.Value) > 0)
-                {
-                    throw new TimeoutException();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-#endif
 
 #if !((WINDOWS_PHONE && WINDOWS_DESKTOP) || PORTABLE)
         /// <summary>

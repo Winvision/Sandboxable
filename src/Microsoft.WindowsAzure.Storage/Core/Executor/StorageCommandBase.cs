@@ -68,12 +68,9 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
         // Delegate that will be executed in the event of an Exception after signing.
         public Action<StorageCommandBase<T>, Exception, OperationContext> RecoveryAction = null;
 
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        public Func<Stream, HttpResponseMessage, string, StorageExtendedErrorInformation> ParseError = null;
-#else
         // Delegate that will be executed in the event of a failure.
         public Func<Stream, HttpWebResponse, string, StorageExtendedErrorInformation> ParseError = null;
-#endif
+
         // Delegate that will be executed in the event of a failure while using the WCF Data Services Client.
         public Func<Stream, IDictionary<string, string>, string, StorageExtendedErrorInformation> ParseDataServiceError = null;
     }

@@ -18,10 +18,7 @@
 namespace Sandboxable.Microsoft.WindowsAzure.Storage
 {
     using System;
-
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
     using System.Net;
-#endif
 
     /// <summary>
     /// Provides information and event data that is associated with a request event.
@@ -49,9 +46,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// <value>The request information associated with this event.</value>
         public RequestResult RequestInformation { get; internal set; }
 
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        public Uri RequestUri { get; internal set; }
-#else
         /// <summary>
         /// Gets the HTTP request associated with this event.
         /// </summary>
@@ -63,6 +57,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// </summary>
         /// <value>The HTTP response associated with this event.</value>
         public HttpWebResponse Response { get; internal set; }
-#endif
     }
 }

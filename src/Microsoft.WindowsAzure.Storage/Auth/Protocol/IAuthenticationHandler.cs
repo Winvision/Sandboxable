@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------------------
-// <copyright file="ICloudBlobStream.cs" company="Microsoft">
+// <copyright file="IAuthenticationHandler.cs" company="Microsoft">
 //    Copyright 2013 Microsoft Corporation
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,24 +15,20 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
-namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
+namespace Sandboxable.Microsoft.WindowsAzure.Storage.Auth.Protocol
 {
-    using System.IO;
-    using System.Threading.Tasks;
-#if WINDOWS_RT
-    using Windows.Storage.Streams;
-#endif
+    using System.Net;
 
     /// <summary>
-    /// Represents a stream for writing to a blob.
+    /// Represents a handler that signs HTTP requests.
     /// </summary>
-    public abstract class CloudBlobStream : Stream
+    public interface IAuthenticationHandler
     {
         /// <summary>
-        /// Asynchronously clears all buffers for this stream, causes any buffered data to be written to the underlying blob, and commits the blob.
+        /// Signs the specified HTTP request so it can be authenticated by the Windows Azure storage services.
         /// </summary>
-        /// <returns>A <see cref="Task"/> that represents an asynchronous action.</returns>
-        public abstract Task CommitAsync();
-
+        /// <param name="request">The HTTP request to sign.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        void SignRequest(HttpWebRequest request, OperationContext operationContext);
     }
 }

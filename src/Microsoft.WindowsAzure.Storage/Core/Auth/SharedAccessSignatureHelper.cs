@@ -21,9 +21,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
     using Sandboxable.Microsoft.WindowsAzure.Storage.Auth;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Blob;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util;
-#if !PORTABLE
     using Sandboxable.Microsoft.WindowsAzure.Storage.File;
-#endif
     using Sandboxable.Microsoft.WindowsAzure.Storage.Queue;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table;
@@ -38,7 +36,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
     /// </summary>
     internal static class SharedAccessSignatureHelper
     {
-#if !PORTABLE
         /// <summary>
         /// Get the complete query builder for creating the Shared Access Signature query.
         /// </summary>
@@ -305,7 +302,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
 
             return builder;
         }
-#endif
 
         /// <summary>
         /// Converts the specified value to either a string representation or <see cref="String.Empty"/>.
@@ -329,7 +325,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
             return result;
         }
 
-#if !PORTABLE
         /// <summary>
         /// Converts the specified value to either a string representation or <c>null</c>.
         /// </summary>
@@ -349,7 +344,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
 
             return protocols.Value == SharedAccessProtocol.HttpsOnly ? "https" : "https,http";
         }
-#endif 
 
         /// <summary>
         /// Escapes and adds the specified name/value pair to the query builder if it is not null.
@@ -413,7 +407,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
             return null;
         }
 
-#if !PORTABLE
         /// <summary>
         /// Get the signature hash embedded inside the Shared Access Signature.
         /// </summary>
@@ -758,6 +751,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
 
             return CryptoUtility.ComputeHmac256(keyValue, stringToSign);
         }
-#endif
     }
 }

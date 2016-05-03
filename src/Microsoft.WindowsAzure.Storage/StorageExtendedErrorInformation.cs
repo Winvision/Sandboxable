@@ -26,14 +26,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
     using System.Collections.Generic;
     using System.IO;
     using System.Net;
-#if WINDOWS_RT || PORTABLE || ASPNET_K
-    using System.Net.Http;
-#endif
     using System.Xml;
 
-#if WINDOWS_DESKTOP && !WINDOWS_PHONE
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table.DataServices;
-#elif WINDOWS_RT
+#if WINDOWS_RT
     using Windows.Storage.Streams;
 #endif
 
@@ -116,11 +112,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// <param name="response">The web response.</param>
         /// <param name="contentType">The response Content-Type.</param>
         /// <returns>The error details.</returns>
-#if WINDOWS_RT || ASPNET_K || PORTABLE
-        public static StorageExtendedErrorInformation ReadFromStreamUsingODataLib(Stream inputStream, HttpResponseMessage response, string contentType)
-#else
         public static StorageExtendedErrorInformation ReadFromStreamUsingODataLib(Stream inputStream, HttpWebResponse response, string contentType)
-#endif
         {
             CommonUtility.AssertNotNull("inputStream", inputStream);
             CommonUtility.AssertNotNull("response", response);
@@ -141,7 +133,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// <param name="responseHeaders">The web response headers.</param>
         /// <param name="contentType">The response Content-Type.</param>
         /// <returns>The error details.</returns>
-#if WINDOWS_DESKTOP && !WINDOWS_PHONE
         public static StorageExtendedErrorInformation ReadDataServiceResponseFromStream(Stream inputStream, IDictionary<string, string> responseHeaders, string contentType)
         {
             CommonUtility.AssertNotNull("inputStream", inputStream);
@@ -154,7 +145,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
             DataServicesResponseAdapterMessage responseMessage = new DataServicesResponseAdapterMessage(responseHeaders, inputStream, contentType);
             return ReadAndParseExtendedError(responseMessage);
         }
-#endif
 
         /// <summary>
         /// Parses the error details from the stream using OData library.

@@ -1,19 +1,22 @@
-﻿// -----------------------------------------------------------------------------------------
+﻿//-----------------------------------------------------------------------
 // <copyright file="BlobHttpResponseParsers.cs" company="Microsoft">
 //    Copyright 2013 Microsoft Corporation
-// 
+//
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
 //    You may obtain a copy of the License at
 //      http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 //    Unless required by applicable law or agreed to in writing, software
 //    distributed under the License is distributed on an "AS IS" BASIS,
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 // </copyright>
-// -----------------------------------------------------------------------------------------
+// <summary>
+//    Contains code for the CloudStorageAccount class.
+// </summary>
+//-----------------------------------------------------------------------
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
 {
@@ -22,74 +25,51 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
     using System;
     using System.Collections.Generic;
     using System.Globalization;
-    using System.Net.Http;
+    using System.Net;
 
-#if ASPNET_K || PORTABLE
-    public
-#else
-    internal
-#endif
-        static partial class BlobHttpResponseParsers
+    /// <summary>
+    /// Provides a set of methods for parsing a response containing blob data from the Blob service.
+    /// </summary>
+    public static partial class BlobHttpResponseParsers
     {
+        /// <summary>
+        /// Gets the request ID from the response.
+        /// </summary>
+        /// <param name="response">The web response.</param>
+        /// <returns>A unique value associated with the request.</returns>
+        public static string GetRequestId(HttpWebResponse response)
+        {
+            return Response.GetRequestId(response);
+        }
+
         /// <summary>
         /// Gets the blob's properties from the response.
         /// </summary>
         /// <param name="response">The web response.</param>
         /// <returns>The blob's properties.</returns>
-        public static BlobProperties GetProperties(HttpResponseMessage response)
+        public static BlobProperties GetProperties(HttpWebResponse response)
         {
+            CommonUtility.AssertNotNull("response", response);
+
             BlobProperties properties = new BlobProperties();
+            properties.ETag = HttpResponseParsers.GetETag(response);
 
-            if (response.Content != null)
-            {
-                properties.LastModified = response.Content.Headers.LastModified;
-                properties.ContentEncoding = HttpWebUtility.CombineHttpHeaderValues(response.Content.Headers.ContentEncoding);
-                properties.ContentLanguage = HttpWebUtility.CombineHttpHeaderValues(response.Content.Headers.ContentLanguage);
+#if WINDOWS_PHONE 
+            properties.LastModified = HttpResponseParsers.GetLastModified(response);
+            properties.ContentLanguage = response.Headers[Constants.HeaderConstants.ContentLanguageHeader];
+#else
+            properties.LastModified = response.LastModified.ToUniversalTime();
+            properties.ContentLanguage = response.Headers[HttpResponseHeader.ContentLanguage];
+#endif
 
-                if (response.Content.Headers.ContentDisposition != null)
-                {
-                    properties.ContentDisposition = response.Content.Headers.ContentDisposition.ToString();
-                }
-                
-                if (response.Content.Headers.ContentMD5 != null)
-                {
-                    properties.ContentMD5 = Convert.ToBase64String(response.Content.Headers.ContentMD5);
-                }
-
-                if (response.Content.Headers.ContentType != null)
-                {
-                    properties.ContentType = response.Content.Headers.ContentType.ToString();
-                }
-
-                // Get the content length. Prioritize range and x-ms over content length for the special cases.
-                string contentLengthHeader = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.BlobContentLengthHeader);
-                if ((response.Content.Headers.ContentRange != null) &&
-                    response.Content.Headers.ContentRange.HasLength)
-                {
-                    properties.Length = response.Content.Headers.ContentRange.Length.Value;
-                }
-                else if (!string.IsNullOrEmpty(contentLengthHeader))
-                {
-                    properties.Length = long.Parse(contentLengthHeader);
-                }
-                else if (response.Content.Headers.ContentLength.HasValue)
-                {
-                    properties.Length = response.Content.Headers.ContentLength.Value;
-                }
-            }
-
-            if (response.Headers.CacheControl != null)
-            {
-                properties.CacheControl = response.Headers.CacheControl.ToString();
-            }
-
-            if (response.Headers.ETag != null)
-            {
-                properties.ETag = response.Headers.ETag.ToString();
-            }
+            properties.ContentDisposition = response.Headers[Constants.HeaderConstants.ContentDispositionResponseHeader];
+            properties.ContentEncoding = response.Headers[HttpResponseHeader.ContentEncoding];
+            properties.ContentMD5 = response.Headers[HttpResponseHeader.ContentMd5];
+            properties.ContentType = response.Headers[HttpResponseHeader.ContentType];
+            properties.CacheControl = response.Headers[HttpResponseHeader.CacheControl];
 
             // Get blob type
-            string blobType = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.BlobType);
+            string blobType = response.Headers[Constants.HeaderConstants.BlobType];
             if (!string.IsNullOrEmpty(blobType))
             {
                 properties.BlobType = (BlobType)Enum.Parse(typeof(BlobType), blobType, true);
@@ -100,15 +80,38 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
             properties.LeaseState = GetLeaseState(response);
             properties.LeaseDuration = GetLeaseDuration(response);
 
+            // Get the content length. Prioritize range and x-ms over content length for the special cases.
+            string rangeHeader = response.Headers[HttpResponseHeader.ContentRange];
+            string contentLengthHeader = response.Headers[Constants.HeaderConstants.ContentLengthHeader];
+            string blobContentLengthHeader = response.Headers[Constants.HeaderConstants.BlobContentLengthHeader];
+            if (!string.IsNullOrEmpty(rangeHeader))
+            {
+                properties.Length = long.Parse(rangeHeader.Split('/')[1], CultureInfo.InvariantCulture);
+            }
+            else if (!string.IsNullOrEmpty(blobContentLengthHeader))
+            {
+                properties.Length = long.Parse(blobContentLengthHeader, CultureInfo.InvariantCulture);
+            }
+            else if (!string.IsNullOrEmpty(contentLengthHeader))
+            {
+                // On Windows Phone, ContentLength property is not always same as Content-Length header,
+                // so we try to parse the header first.
+                properties.Length = long.Parse(contentLengthHeader, CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                properties.Length = response.ContentLength;
+            }
+
             // Get sequence number
-            string sequenceNumber = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.BlobSequenceNumber);
+            string sequenceNumber = response.Headers[Constants.HeaderConstants.BlobSequenceNumber];
             if (!string.IsNullOrEmpty(sequenceNumber))
             {
                 properties.PageBlobSequenceNumber = long.Parse(sequenceNumber, CultureInfo.InvariantCulture);
             }
 
             // Get committed block count
-            string comittedBlockCount = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.BlobCommittedBlockCount);
+            string comittedBlockCount = response.Headers[Constants.HeaderConstants.BlobCommittedBlockCount];
             if (!string.IsNullOrEmpty(comittedBlockCount))
             {
                 properties.AppendBlobCommittedBlockCount = int.Parse(comittedBlockCount, CultureInfo.InvariantCulture);
@@ -124,9 +127,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// <returns>A <see cref="LeaseStatus"/> enumeration from the web response.</returns>
         /// <remarks>If the appropriate header is not present, a status of <see cref="LeaseStatus.Unspecified"/> is returned.</remarks>
         /// <exception cref="System.ArgumentException">The header contains an unrecognized value.</exception>
-        public static LeaseStatus GetLeaseStatus(HttpResponseMessage response)
+        public static LeaseStatus GetLeaseStatus(HttpWebResponse response)
         {
-            string leaseStatus = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.LeaseStatus);
+            CommonUtility.AssertNotNull("response", response);
+
+            string leaseStatus = response.Headers[Constants.HeaderConstants.LeaseStatus];
             return GetLeaseStatus(leaseStatus);
         }
 
@@ -137,9 +142,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// <returns>A <see cref="LeaseState"/> enumeration from the web response.</returns>
         /// <remarks>If the appropriate header is not present, a status of <see cref="LeaseState.Unspecified"/> is returned.</remarks>
         /// <exception cref="System.ArgumentException">The header contains an unrecognized value.</exception>
-        public static LeaseState GetLeaseState(HttpResponseMessage response)
+        public static LeaseState GetLeaseState(HttpWebResponse response)
         {
-            string leaseState = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.LeaseState);
+            CommonUtility.AssertNotNull("response", response);
+
+            string leaseState = response.Headers[Constants.HeaderConstants.LeaseState];
             return GetLeaseState(leaseState);
         }
 
@@ -150,9 +157,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// <returns>A <see cref="LeaseDuration"/> enumeration from the web response.</returns>
         /// <remarks>If the appropriate header is not present, a status of <see cref="LeaseDuration.Unspecified"/> is returned.</remarks>
         /// <exception cref="System.ArgumentException">The header contains an unrecognized value.</exception>
-        public static LeaseDuration GetLeaseDuration(HttpResponseMessage response)
+        public static LeaseDuration GetLeaseDuration(HttpWebResponse response)
         {
-            string leaseDuration = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.LeaseDurationHeader);
+            CommonUtility.AssertNotNull("response", response);
+
+            string leaseDuration = response.Headers[Constants.HeaderConstants.LeaseDurationHeader];
             return GetLeaseDuration(leaseDuration);
         }
 
@@ -161,9 +170,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// </summary>
         /// <param name="response">The web response.</param>
         /// <returns>The lease ID.</returns>
-        public static string GetLeaseId(HttpResponseMessage response)
+        public static string GetLeaseId(HttpWebResponse response)
         {
-            return response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.LeaseIdHeader);
+            CommonUtility.AssertNotNull("response", response);
+
+            return response.Headers[Constants.HeaderConstants.LeaseIdHeader];
         }
 
         /// <summary>
@@ -171,11 +182,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// </summary>
         /// <param name="response">The web response.</param>
         /// <returns>The remaining lease time, in seconds.</returns>
-        public static int? GetRemainingLeaseTime(HttpResponseMessage response)
+        public static int? GetRemainingLeaseTime(HttpWebResponse response)
         {
-            string leaseTime = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.LeaseTimeHeader);
+            CommonUtility.AssertNotNull("response", response);
+
             int remainingLeaseTime;
-            if (int.TryParse(leaseTime, out remainingLeaseTime))
+            if (int.TryParse(response.Headers[Constants.HeaderConstants.LeaseTimeHeader], out remainingLeaseTime))
             {
                 return remainingLeaseTime;
             }
@@ -189,8 +201,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// Gets the user-defined metadata.
         /// </summary>
         /// <param name="response">The response from server.</param>
-        /// <returns>A <see cref="IDictionary"/> of the metadata.</returns>
-        public static IDictionary<string, string> GetMetadata(HttpResponseMessage response)
+        /// <returns>A <see cref="System.Collections.IDictionary"/> of the metadata.</returns>
+        public static IDictionary<string, string> GetMetadata(HttpWebResponse response)
         {
             return HttpResponseParsers.GetMetadata(response);
         }
@@ -199,19 +211,21 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// Extracts a <see cref="CopyState"/> object from the headers of a web response.
         /// </summary>
         /// <param name="response">The HTTP web response.</param>
-        /// <returns>A <see cref="CopyState"/> object, or null if the web response does not contain a copy status.</returns>
-        public static CopyState GetCopyAttributes(HttpResponseMessage response)
+        /// <returns>A <see cref="CopyState"/> object, or <c>null</c> if the web response does not include copy state.</returns>
+        public static CopyState GetCopyAttributes(HttpWebResponse response)
         {
-            string copyStatusString = response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.CopyStatusHeader);
+            CommonUtility.AssertNotNull("response", response);
+
+            string copyStatusString = response.Headers[Constants.HeaderConstants.CopyStatusHeader];
             if (!string.IsNullOrEmpty(copyStatusString))
             {
                 return GetCopyAttributes(
                     copyStatusString,
-                    response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.CopyIdHeader),
-                    response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.CopySourceHeader),
-                    response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.CopyProgressHeader),
-                    response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.CopyCompletionTimeHeader),
-                    response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.CopyDescriptionHeader));
+                    response.Headers[Constants.HeaderConstants.CopyIdHeader],
+                    response.Headers[Constants.HeaderConstants.CopySourceHeader],
+                    response.Headers[Constants.HeaderConstants.CopyProgressHeader],
+                    response.Headers[Constants.HeaderConstants.CopyCompletionTimeHeader],
+                    response.Headers[Constants.HeaderConstants.CopyDescriptionHeader]);
             }
             else
             {
@@ -224,9 +238,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
         /// </summary>
         /// <param name="response">The web response.</param>
         /// <returns>The snapshot timestamp.</returns>
-        public static string GetSnapshotTime(HttpResponseMessage response)
+        public static string GetSnapshotTime(HttpWebResponse response)
         {
-            return response.Headers.GetHeaderSingleValueOrDefault(Constants.HeaderConstants.SnapshotHeader);
+            CommonUtility.AssertNotNull("response", response);
+
+            return response.Headers[Constants.HeaderConstants.SnapshotHeader];
         }
     }
 }

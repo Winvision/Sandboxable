@@ -23,30 +23,48 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol;
     using System;
+    using System.IO;
     using System.Net;
-    using System.Net.Http;
-    using System.Threading;
-
-#if ASPNET_K || PORTABLE
-#else
-    using Windows.Foundation;
-    using System.Runtime.InteropServices.WindowsRuntime;
-#endif
-    using System.Threading.Tasks;
 
     /// <summary>
     /// Represents a single table operation.
     /// </summary>
     public partial class TableOperation
     {
-        internal Task<TableResult> ExecuteAsync(CloudTableClient client, string tableName, TableRequestOptions requestOptions, OperationContext operationContext, CancellationToken cancellationToken)
+#if SYNC
+        internal TableResult Execute(CloudTableClient client, CloudTable table, TableRequestOptions requestOptions, OperationContext operationContext)
+        {
+            TableRequestOptions modifiedOptions = TableRequestOptions.ApplyDefaults(requestOptions, client);
+            operationContext = operationContext ?? new OperationContext();
+            CommonUtility.AssertNotNullOrEmpty("tableName", table.Name);
+
+            return Executor.ExecuteSync(this.GenerateCMDForOperation(client, table, modifiedOptions), modifiedOptions.RetryPolicy, operationContext);
+        }
+#endif
+
+        [DoesServiceRequest]
+        internal ICancellableAsyncResult BeginExecute(CloudTableClient client, CloudTable table, TableRequestOptions requestOptions, OperationContext operationContext, AsyncCallback callback, object state)
         {
             TableRequestOptions modifiedOptions = TableRequestOptions.ApplyDefaults(requestOptions, client);
             operationContext = operationContext ?? new OperationContext();
 
-            CommonUtility.AssertNotNullOrEmpty("tableName", tableName);
-            RESTCommand<TableResult> cmdToExecute = null;
+            CommonUtility.AssertNotNullOrEmpty("tableName", table.Name);
 
+            return Executor.BeginExecuteAsync(
+                                          this.GenerateCMDForOperation(client, table, modifiedOptions),
+                                          modifiedOptions.RetryPolicy,
+                                          operationContext,
+                                          callback,
+                                          state);
+        }
+
+        internal static TableResult EndExecute(IAsyncResult asyncResult)
+        {
+            return Executor.EndExecuteAsync<TableResult>(asyncResult);
+        }
+
+        internal RESTCommand<TableResult> GenerateCMDForOperation(CloudTableClient client, CloudTable table, TableRequestOptions modifiedOptions)
+        {
             if (this.OperationType == TableOperationType.Insert ||
                 this.OperationType == TableOperationType.InsertOrMerge ||
                 this.OperationType == TableOperationType.InsertOrReplace)
@@ -57,7 +75,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                     CommonUtility.AssertNotNull("Upserts require a valid RowKey", this.Entity.RowKey);
                 }
 
-                cmdToExecute = InsertImpl(this, client, tableName, modifiedOptions);
+                return InsertImpl(this, client, table, modifiedOptions);
             }
             else if (this.OperationType == TableOperationType.Delete)
             {
@@ -68,7 +86,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                     CommonUtility.AssertNotNull("Delete requires a valid RowKey", this.Entity.RowKey);
                 }
 
-                cmdToExecute = DeleteImpl(this, client, tableName, modifiedOptions);
+                return DeleteImpl(this, client, table, modifiedOptions);
             }
             else if (this.OperationType == TableOperationType.Merge)
             {
@@ -76,7 +94,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                 CommonUtility.AssertNotNull("Merge requires a valid PartitionKey", this.Entity.PartitionKey);
                 CommonUtility.AssertNotNull("Merge requires a valid RowKey", this.Entity.RowKey);
 
-                cmdToExecute = MergeImpl(this, client, tableName, modifiedOptions);
+                return MergeImpl(this, client, table, modifiedOptions);
             }
             else if (this.OperationType == TableOperationType.Replace)
             {
@@ -84,130 +102,156 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                 CommonUtility.AssertNotNull("Replace requires a valid PartitionKey", this.Entity.PartitionKey);
                 CommonUtility.AssertNotNull("Replace requires a valid RowKey", this.Entity.RowKey);
 
-                cmdToExecute = ReplaceImpl(this, client, tableName, modifiedOptions);
+                return ReplaceImpl(this, client, table, modifiedOptions);
             }
             else if (this.OperationType == TableOperationType.Retrieve)
             {
-                cmdToExecute = RetrieveImpl(this, client, tableName, modifiedOptions);
+                return RetrieveImpl(this, client, table, modifiedOptions);
             }
             else
             {
                 throw new NotSupportedException();
             }
-
-            return Task.Run(() => Executor.ExecuteAsync(
-                                            cmdToExecute,
-                                            modifiedOptions.RetryPolicy,
-                                            operationContext,                                                                       
-                                            cancellationToken), cancellationToken);
         }
 
-        private static RESTCommand<TableResult> InsertImpl(TableOperation operation, CloudTableClient client, string tableName, TableRequestOptions requestOptions)
+        private static RESTCommand<TableResult> InsertImpl(TableOperation operation, CloudTableClient client, CloudTable table, TableRequestOptions requestOptions)
         {
-            RESTCommand<TableResult> insertCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, tableName));
+            RESTCommand<TableResult> insertCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, table.Name));
             requestOptions.ApplyToStorageCommand(insertCmd);
 
             TableResult result = new TableResult() { Result = operation.Entity };
             insertCmd.RetrieveResponseStream = true;
+            insertCmd.SignRequest = client.AuthenticationHandler.SignRequest;
             insertCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
-            insertCmd.BuildRequest = (cmd, uri, builder, cnt, serverTimeout, ctx) => TableOperationHttpRequestMessageFactory.BuildRequestForTableOperation(cmd, uri, builder, serverTimeout, operation, client, cnt, ctx, requestOptions.PayloadFormat.Value, client.GetCanonicalizer(), client.Credentials);
-            insertCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex, cmd, ctx);
+            insertCmd.BuildRequestDelegate = (uri, builder, timeout, useVersionHeader, ctx) =>
+            {
+                Tuple<HttpWebRequest, Stream> res = TableOperationHttpWebRequestFactory.BuildRequestForTableOperation(uri, builder, client.BufferManager, timeout, operation, useVersionHeader, ctx, requestOptions, client.AccountName);
+                insertCmd.SendStream = res.Item2;
+                return res.Item1;
+            };
+
+            insertCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex);
 
             insertCmd.PostProcessResponse = (cmd, resp, ctx) => TableOperationHttpResponseParsers.TableOperationPostProcess(result, operation, cmd, resp, ctx, requestOptions, client.AccountName);
 
             return insertCmd;
         }
 
-        private static RESTCommand<TableResult> DeleteImpl(TableOperation operation, CloudTableClient client, string tableName, TableRequestOptions requestOptions)
+        private static RESTCommand<TableResult> DeleteImpl(TableOperation operation, CloudTableClient client, CloudTable table, TableRequestOptions requestOptions)
         {
-            RESTCommand<TableResult> deleteCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, tableName));
+            RESTCommand<TableResult> deleteCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, table.Name));
             requestOptions.ApplyToStorageCommand(deleteCmd);
 
             TableResult result = new TableResult() { Result = operation.Entity };
             deleteCmd.RetrieveResponseStream = false;
+            deleteCmd.SignRequest = client.AuthenticationHandler.SignRequest;
             deleteCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
-            deleteCmd.BuildRequest = (cmd, uri, builder, cnt, serverTimeout, ctx) => TableOperationHttpRequestMessageFactory.BuildRequestForTableOperation(cmd, uri, builder, serverTimeout, operation, client, cnt, ctx, requestOptions.PayloadFormat.Value, client.GetCanonicalizer(), client.Credentials);
-            deleteCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex, cmd, ctx);
+            deleteCmd.BuildRequestDelegate = (uri, builder, timeout, useVersionHeader, ctx) => TableOperationHttpWebRequestFactory.BuildRequestForTableOperation(uri, builder, client.BufferManager, timeout, operation, useVersionHeader, ctx, requestOptions, client.AccountName).Item1;
+            deleteCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex);
 
             return deleteCmd;
         }
 
-        private static RESTCommand<TableResult> MergeImpl(TableOperation operation, CloudTableClient client, string tableName, TableRequestOptions requestOptions)
+        private static RESTCommand<TableResult> MergeImpl(TableOperation operation, CloudTableClient client, CloudTable table, TableRequestOptions requestOptions)
         {
-            RESTCommand<TableResult> mergeCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, tableName));
+            RESTCommand<TableResult> mergeCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, table.Name));
             requestOptions.ApplyToStorageCommand(mergeCmd);
 
             TableResult result = new TableResult() { Result = operation.Entity };
             mergeCmd.RetrieveResponseStream = false;
+            mergeCmd.SignRequest = client.AuthenticationHandler.SignRequest;
             mergeCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
-            mergeCmd.BuildRequest = (cmd, uri, builder, cnt, serverTimeout, ctx) => TableOperationHttpRequestMessageFactory.BuildRequestForTableOperation(cmd, uri, builder, serverTimeout, operation, client, cnt, ctx, requestOptions.PayloadFormat.Value, client.GetCanonicalizer(), client.Credentials);
-            mergeCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex, cmd, ctx);
+            mergeCmd.BuildRequestDelegate = (uri, builder, timeout, useVersionHeader, ctx) =>
+            {
+                Tuple<HttpWebRequest, Stream> res = TableOperationHttpWebRequestFactory.BuildRequestForTableOperation(uri, builder, client.BufferManager, timeout, operation, useVersionHeader, ctx, requestOptions, client.AccountName);
+                mergeCmd.SendStream = res.Item2;
+                return res.Item1;
+            };
+
+            mergeCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex);
 
             return mergeCmd;
         }
 
-        private static RESTCommand<TableResult> ReplaceImpl(TableOperation operation, CloudTableClient client, string tableName, TableRequestOptions requestOptions)
+        private static RESTCommand<TableResult> ReplaceImpl(TableOperation operation, CloudTableClient client, CloudTable table, TableRequestOptions requestOptions)
         {
-            RESTCommand<TableResult> replaceCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, tableName));
+            RESTCommand<TableResult> replaceCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, table.Name));
             requestOptions.ApplyToStorageCommand(replaceCmd);
 
             TableResult result = new TableResult() { Result = operation.Entity };
             replaceCmd.RetrieveResponseStream = false;
+            replaceCmd.SignRequest = client.AuthenticationHandler.SignRequest;
             replaceCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
-            replaceCmd.BuildRequest = (cmd, uri, builder, cnt, serverTimeout, ctx) => TableOperationHttpRequestMessageFactory.BuildRequestForTableOperation(cmd, uri, builder, serverTimeout, operation, client, cnt, ctx, requestOptions.PayloadFormat.Value, client.GetCanonicalizer(), client.Credentials);
-            replaceCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex, cmd, ctx);
+            replaceCmd.BuildRequestDelegate = (uri, builder, timeout, useVersionHeader, ctx) =>
+            {
+                Tuple<HttpWebRequest, Stream> res = TableOperationHttpWebRequestFactory.BuildRequestForTableOperation(uri, builder, client.BufferManager, timeout, operation, useVersionHeader, ctx, requestOptions, client.AccountName);
+                replaceCmd.SendStream = res.Item2;
+                return res.Item1;
+            };
+
+            replaceCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex);
 
             return replaceCmd;
         }
 
-        private static RESTCommand<TableResult> RetrieveImpl(TableOperation operation, CloudTableClient client, string tableName, TableRequestOptions requestOptions)
+        private static RESTCommand<TableResult> RetrieveImpl(TableOperation operation, CloudTableClient client, CloudTable table, TableRequestOptions requestOptions)
         {
-            RESTCommand<TableResult> retrieveCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, tableName));
+            requestOptions.AssertPolicyIfRequired();
+
+            RESTCommand<TableResult> retrieveCmd = new RESTCommand<TableResult>(client.Credentials, operation.GenerateRequestURI(client.StorageUri, table.Name));
             requestOptions.ApplyToStorageCommand(retrieveCmd);
 
             TableResult result = new TableResult();
             if (operation.SelectColumns != null && operation.SelectColumns.Count > 0)
             {
+                // If encryption policy is set, then add the encryption metadata column to Select columns in order to be able to decrypt properties.
+                if (requestOptions.EncryptionPolicy != null)
+                {
+                    operation.SelectColumns.Add(Constants.EncryptionConstants.TableEncryptionKeyDetails);
+                    operation.SelectColumns.Add(Constants.EncryptionConstants.TableEncryptionPropertyDetails);
+                }
+
                 retrieveCmd.Builder = operation.GenerateQueryBuilder(requestOptions.ProjectSystemProperties);
             }
 
             retrieveCmd.CommandLocationMode = operation.isPrimaryOnlyRetrieve ? CommandLocationMode.PrimaryOnly : CommandLocationMode.PrimaryOrSecondary;
             retrieveCmd.RetrieveResponseStream = true;
+            retrieveCmd.SignRequest = client.AuthenticationHandler.SignRequest;
             retrieveCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
-            retrieveCmd.BuildRequest = (cmd, uri, builder, cnt, serverTimeout, ctx) => TableOperationHttpRequestMessageFactory.BuildRequestForTableOperation(cmd, uri, builder, serverTimeout, operation, client, cnt, ctx, requestOptions.PayloadFormat.Value, client.GetCanonicalizer(), client.Credentials);
-            retrieveCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex, cmd, ctx);
+            retrieveCmd.BuildRequestDelegate = (uri, builder, timeout, useVersionHeader, ctx) => TableOperationHttpWebRequestFactory.BuildRequestForTableOperation(uri, builder, client.BufferManager, timeout, operation, useVersionHeader, ctx, requestOptions, client.AccountName).Item1;
+            retrieveCmd.PreProcessResponse = (cmd, resp, ex, ctx) => TableOperationHttpResponseParsers.TableOperationPreProcess(result, operation, resp, ex);
             retrieveCmd.PostProcessResponse = (cmd, resp, ctx) =>
-                  Task.Run(async () =>
-                    {
-                        if (resp.StatusCode == HttpStatusCode.NotFound)
-                        {
-                            return result;
-                        }
+            {
+                if (resp.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return result;
+                }
 
-                        result = await TableOperationHttpResponseParsers.TableOperationPostProcess(result, operation, cmd, resp, ctx, requestOptions, client.AccountName);
-                        return result;
-                    });
+                result = TableOperationHttpResponseParsers.TableOperationPostProcess(result, operation, cmd, resp, ctx, requestOptions, client.AccountName);
+                return result;
+            };
+
             return retrieveCmd;
         }
 
-        internal HttpMethod HttpMethod
+        internal string HttpMethod
         {
             get
             {
                 switch (this.OperationType)
                 {
                     case TableOperationType.Insert:
-                        return HttpMethod.Post;
+                        return "POST";
                     case TableOperationType.Merge:
                     case TableOperationType.InsertOrMerge:
-                        return HttpMethod.Post; // Post tunneling for merge
+                        return "POST"; // Post tunneling for merge
                     case TableOperationType.Replace:
                     case TableOperationType.InsertOrReplace:
-                        return HttpMethod.Put;
+                        return "PUT";
                     case TableOperationType.Delete:
-                        return HttpMethod.Delete;
+                        return "DELETE";
                     case TableOperationType.Retrieve:
-                        return HttpMethod.Get;
+                        return "GET";
                     default:
                         throw new NotSupportedException();
                 }

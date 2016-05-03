@@ -20,28 +20,50 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor;
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
     using System.Net;
-    using System.Net.Http;
-    using System.Net.Http.Headers;
 
     internal static partial class HttpResponseParsers
     {
-        internal static T ProcessExpectedStatusCodeNoException<T>(HttpStatusCode expectedStatusCode, HttpResponseMessage resp, T retVal, StorageCommandBase<T> cmd, Exception ex)
+        internal static T ProcessExpectedStatusCodeNoException<T>(HttpStatusCode expectedStatusCode, HttpWebResponse resp, T retVal, StorageCommandBase<T> cmd, Exception ex)
         {
             return ProcessExpectedStatusCodeNoException(expectedStatusCode, resp != null ? resp.StatusCode : HttpStatusCode.Unused, retVal, cmd, ex);
         }
 
-        internal static T ProcessExpectedStatusCodeNoException<T>(HttpStatusCode[] expectedStatusCodes, HttpResponseMessage resp, T retVal, StorageCommandBase<T> cmd, Exception ex)
+        internal static T ProcessExpectedStatusCodeNoException<T>(HttpStatusCode[] expectedStatusCodes, HttpWebResponse resp, T retVal, StorageCommandBase<T> cmd, Exception ex)
         {
             return ProcessExpectedStatusCodeNoException(expectedStatusCodes, resp != null ? resp.StatusCode : HttpStatusCode.Unused, retVal, cmd, ex);
         }
 
         /// <summary>
+        /// Gets an ETag from a response.
+        /// </summary>
+        /// <param name="response">The web response.</param>
+        /// <returns>A quoted ETag string.</returns>
+        internal static string GetETag(HttpWebResponse response)
+        {
+            return response.Headers[HttpResponseHeader.ETag];
+        }
+
+#if WINDOWS_PHONE
+        /// <summary>
+        /// Gets the Last-Modified date and time from a response.
+        /// </summary>
+        /// <param name="response">The web response.</param>
+        /// <returns>A <see cref="System.DateTimeOffset"/> that indicates the last modified date and time.</returns>
+        internal static DateTimeOffset? GetLastModified(HttpWebResponse response)
+        {
+            string lastModified = response.Headers[HttpResponseHeader.LastModified];
+            return string.IsNullOrEmpty(lastModified) ? (DateTimeOffset?)null : DateTimeOffset.Parse(lastModified, CultureInfo.InvariantCulture);
+        }
+#endif
+
+        /// <summary>
         /// Gets the user-defined metadata.
         /// </summary>
         /// <param name="response">The response from server.</param>
-        /// <returns>A <see cref="IDictionary"/> of the metadata.</returns>
-        internal static IDictionary<string, string> GetMetadata(HttpResponseMessage response)
+        /// <returns>A <see cref="System.Collections.IDictionary"/> of the metadata.</returns>
+        internal static IDictionary<string, string> GetMetadata(HttpWebResponse response)
         {
             return GetMetadataOrProperties(response, Constants.HeaderConstants.PrefixForStorageMetadata);
         }
@@ -51,18 +73,17 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         /// </summary>
         /// <param name="response">The response from server.</param>
         /// <param name="prefix">The prefix for all the headers.</param>
-        /// <returns>A <see cref="IDictionary"/> of the headers with the prefix.</returns>
-        private static IDictionary<string, string> GetMetadataOrProperties(HttpResponseMessage response, string prefix)
+        /// <returns>A <see cref="System.Collections.IDictionary"/> of the headers with the prefix.</returns>
+        private static IDictionary<string, string> GetMetadataOrProperties(HttpWebResponse response, string prefix)
         {
-            IDictionary<string, string> nameValues = new Dictionary<string, string>();
-            HttpResponseHeaders headers = response.Headers;
+            IDictionary<string, string> nameValues = new Dictionary<string, string>();            
             int prefixLength = prefix.Length;
 
-            foreach (KeyValuePair<string, IEnumerable<string>> header in headers)
+            foreach (string header in response.Headers.AllKeys)
             {
-                if (header.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                if (header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    nameValues[header.Key.Substring(prefixLength)] = string.Join(",", header.Value);
+                    nameValues[header.Substring(prefixLength)] = response.Headers[header];
                 }
             }
 

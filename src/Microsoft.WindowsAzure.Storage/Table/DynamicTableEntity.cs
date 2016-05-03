@@ -111,7 +111,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
         /// <remarks>Set this value to '*' to blindly overwrite an entity as part of an update operation.</remarks>
         public string ETag { get; set; }
 
-#if !(WINDOWS_RT ||  ASPNET_K || PORTABLE)
         /// <summary>
         /// Gets or sets the entity's property, given the name of the property.
         /// </summary>
@@ -122,7 +121,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             get { return this.Properties[key]; }
             set { this.Properties[key] = value; }
         }
-#endif
 
         /// <summary>
         /// Deserializes this <see cref="DynamicTableEntity"/> instance using the specified <see cref="IDictionary{TKey,TValue}"/> of property names to values of type <see cref="EntityProperty"/>.
