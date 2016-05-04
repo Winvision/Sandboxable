@@ -1165,11 +1165,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
 
             if (accountName != null && accountKey != null && sharedAccessSignature == null)
             {
-#if PORTABLE
-                throw new NotSupportedException(SR.PortableDoesNotSupportSharedKey);
-#else
                 return new StorageCredentials(accountName, accountKey, accountKeyName);
-#endif
             }
 
             if (accountName == null && accountKey == null && accountKeyName == null && sharedAccessSignature != null)
