@@ -1165,9 +1165,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
 
             if (accountName != null && accountKey != null && sharedAccessSignature == null)
             {
-
                 return new StorageCredentials(accountName, accountKey, accountKeyName);
-
             }
 
             if (accountName == null && accountKey == null && accountKeyName == null && sharedAccessSignature != null)
