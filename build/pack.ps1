@@ -1,23 +1,27 @@
-if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/Hyak.Common)) {
-	nuget pack src\Hyak.Common\Hyak.Common.csproj -version $env:APPVEYOR_BUILD_VERSION
+# Get git range
+$merge = $false
+$parents = (git log -1 --pretty=format:%p)
+if ($parents -like " ") {
+	# Is merge commit
+	$merge = $true
+	$parents = $parents.replace(" ", "..")
 }
 
-if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/Microsoft.Azure.Common)) {
-	nuget pack src\Microsoft.Azure.Common\Microsoft.Azure.Common.csproj -version $env:APPVEYOR_BUILD_VERSION
+# Version number
+$version = $env:APPVEYOR_BUILD_VERSION
+if ($env:CI -eq "true") {
+	$version = "$version-preview"
 }
 
-if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/Microsoft.Azure.KeyVault)) {
-	nuget pack src\Microsoft.Azure.KeyVault\Microsoft.Azure.KeyVault.csproj -version $env:APPVEYOR_BUILD_VERSION
+function Pack-Nuget([string]$Name) {
+	if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/$name) -or ($merge -and (git log $parents --pretty=format:%H src/$name).length -gt 0)) {
+		nuget pack src\$name\$name.csproj -version $version
+	}
 }
 
-if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/Microsoft.IdentityModel.Clients.ActiveDirectory)) {
-	nuget pack src\Microsoft.IdentityModel.Clients.ActiveDirectory\Microsoft.IdentityModel.Clients.ActiveDirectory.csproj -version $env:APPVEYOR_BUILD_VERSION
-}
-
-if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/Microsoft.Azure.Management.KeyVault)) {
-	nuget pack src\Microsoft.Azure.Management.KeyVault\Microsoft.Azure.Management.KeyVault.csproj -version $env:APPVEYOR_BUILD_VERSION
-}
-
-if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/Microsoft.WindowsAzure.Storage)) {
-	nuget pack src\Microsoft.WindowsAzure.Storage\Microsoft.WindowsAzure.Storage.csproj -version $env:APPVEYOR_BUILD_VERSION
-}
+Pack-Nuget -Name Hyak.Common
+Pack-Nuget -Name Microsoft.Azure.Common
+Pack-Nuget -Name Microsoft.Azure.KeyVault
+Pack-Nuget -Name Microsoft.IdentityModel.Clients.ActiveDirectory
+Pack-Nuget -Name Microsoft.Azure.Management.KeyVault
+Pack-Nuget -Name Microsoft.WindowsAzure.Storage
