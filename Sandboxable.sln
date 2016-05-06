@@ -27,6 +27,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{36809857
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.WindowsAzure.Storage", "src\Microsoft.WindowsAzure.Storage\Microsoft.WindowsAzure.Storage.csproj", "{7525653E-56A9-4092-ACE0-2CF778561793}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SandboxTester", "src\SandboxTester\SandboxTester\SandboxTester.csproj", "{A45E83A6-9552-4BAD-9F8C-6F8DE1A46574}"
+	ProjectSection(ProjectDependencies) = postProject
+		{51229C5F-3263-4598-A001-C6C3C5EE0D28} = {51229C5F-3263-4598-A001-C6C3C5EE0D28}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SandboxTesterUntrusted", "src\SandboxTesterUntrusted\SandboxTesterUntrusted.csproj", "{51229C5F-3263-4598-A001-C6C3C5EE0D28}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +64,14 @@ Global
 		{7525653E-56A9-4092-ACE0-2CF778561793}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7525653E-56A9-4092-ACE0-2CF778561793}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7525653E-56A9-4092-ACE0-2CF778561793}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A45E83A6-9552-4BAD-9F8C-6F8DE1A46574}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A45E83A6-9552-4BAD-9F8C-6F8DE1A46574}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A45E83A6-9552-4BAD-9F8C-6F8DE1A46574}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A45E83A6-9552-4BAD-9F8C-6F8DE1A46574}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51229C5F-3263-4598-A001-C6C3C5EE0D28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51229C5F-3263-4598-A001-C6C3C5EE0D28}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51229C5F-3263-4598-A001-C6C3C5EE0D28}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51229C5F-3263-4598-A001-C6C3C5EE0D28}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,5 +83,7 @@ Global
 		{C4E13DA9-A3E1-460B-88A8-F62C8A08B3B0} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 		{568EA07F-F3DB-4E75-9CD5-E4EF5CB2AA79} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 		{7525653E-56A9-4092-ACE0-2CF778561793} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
+		{A45E83A6-9552-4BAD-9F8C-6F8DE1A46574} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
+		{51229C5F-3263-4598-A001-C6C3C5EE0D28} = {02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}
 	EndGlobalSection
 EndGlobal
