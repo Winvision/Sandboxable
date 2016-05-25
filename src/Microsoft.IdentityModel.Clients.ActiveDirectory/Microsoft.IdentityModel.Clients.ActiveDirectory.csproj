@@ -29,6 +29,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>..\development.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto, Version=1.8.1.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
       <HintPath>..\..\packages\BouncyCastle.Crypto.dll.1.8.1\lib\BouncyCastle.Crypto.dll</HintPath>
@@ -60,6 +66,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\development.snk">
+      <Link>development.snk</Link>
+    </None>
     <None Include="Microsoft.IdentityModel.Clients.ActiveDirectory.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>

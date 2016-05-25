@@ -29,17 +29,23 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>..\development.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.17\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
+    <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.42\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Sandboxable.Microsoft.Azure.Common, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Microsoft.Azure.Common.1.0.17\lib\net452\Sandboxable.Microsoft.Azure.Common.dll</HintPath>
+    <Reference Include="Sandboxable.Microsoft.Azure.Common, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Sandboxable.Microsoft.Azure.Common.1.0.43\lib\net452\Sandboxable.Microsoft.Azure.Common.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -73,6 +79,9 @@
     <Compile Include="UriExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\development.snk">
+      <Link>development.snk</Link>
+    </None>
     <None Include="Microsoft.Azure.KeyVault.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
