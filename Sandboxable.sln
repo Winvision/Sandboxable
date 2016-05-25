@@ -27,6 +27,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{36809857-D87B-494D-B4FA-D712BAAA58B9}"
 	ProjectSection(SolutionItems) = preProject
 		build\pack.ps1 = build\pack.ps1
+		build\sign.ps1 = build\sign.ps1
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.WindowsAzure.Storage", "src\Microsoft.WindowsAzure.Storage\Microsoft.WindowsAzure.Storage.csproj", "{7525653E-56A9-4092-ACE0-2CF778561793}"
