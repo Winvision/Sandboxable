@@ -30,6 +30,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>..\development.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -85,6 +91,9 @@
     <Compile Include="TransientFaultHandling\ITransientErrorDetectionStrategy.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\development.snk">
+      <Link>development.snk</Link>
+    </None>
     <None Include="Hyak.Common.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>

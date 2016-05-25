@@ -4,6 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02A0C1BF-E1E0-46D5-9F9F-A5FA686A365E}"
+	ProjectSection(SolutionItems) = preProject
+		src\development.snk = src\development.snk
+		src\release.snk.enc = src\release.snk.enc
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Azure.Common", "src\Microsoft.Azure.Common\Microsoft.Azure.Common.csproj", "{6FC1B259-87D1-4BB7-9FFF-6C0625D99E46}"
 EndProject
