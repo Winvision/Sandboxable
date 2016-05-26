@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,18 +16,20 @@
 // governing permissions and limitations under the License.
 
 using System;
+using System.Globalization;
 using System.Net;
 
 namespace Sandboxable.Microsoft.Azure.KeyVault
 {
+    /// <summary>
+    /// KeyVault Request Exception
+    /// </summary>
     public class KeyVaultClientException : Exception
     {
-        private static string GetExceptionMessage(Error error)
+        private static string GetExceptionMessage( Error error )
         {
-            if (error != null && !string.IsNullOrWhiteSpace(error.Message))
-            {
+            if ( error != null && !string.IsNullOrWhiteSpace( error.Message ) )
                 return error.Message;
-            }
 
             return "Service Error information was not available";
         }
@@ -43,14 +45,13 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// Constructor
         /// </summary>
         /// <param name="status">The HTTP response status code</param>
-        /// <param name="requestUri"></param>
         /// <param name="error">The Error object returned by the service</param>
-        public KeyVaultClientException(HttpStatusCode status, Uri requestUri, Error error = null)
-            : base(GetExceptionMessage(error))
+        public KeyVaultClientException( HttpStatusCode status, Uri requestUri, Error error = null )
+            : base( GetExceptionMessage( error ) )
         {
-            this.Error = error;
-            this.RequestUri = requestUri;
-            this.Status = status;
+            Error      = error;
+            RequestUri = requestUri;
+            Status     = status;
         }
 
         /// <summary>

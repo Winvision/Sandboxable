@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,25 +15,24 @@
 // See the Apache License, Version 2.0 for the specific language
 // governing permissions and limitations under the License.
 
-using System;
-
-namespace Sandboxable.Microsoft.Azure.KeyVault
+namespace Sandboxable.Microsoft.Azure.KeyVault.WebKey
 {
-    public sealed class SecretIdentifier : ObjectIdentifier
+    /// <summary>
+    /// Supported JsonWebKey algorithms
+    /// </summary>
+    public static class JsonWebKeyEncryptionAlgorithm
     {
-        public static bool IsSecretIdentifier(string identifier)
+        public const string RSAOAEP = "RSA-OAEP";
+        public const string RSA15   = "RSA1_5";
+
+        /// <summary>
+        /// All algorithms names. Use clone to avoid FxCop violation
+        /// </summary>
+        public static string[] AllAlgorithms
         {
-            return IsObjectIdentifier("secrets", identifier);
+            get { return (string[])_allAlgorithms.Clone(); }
         }
 
-        public SecretIdentifier(string vault, string name, string version = null)
-            : base(vault, "secrets", name, version)
-        {
-        }
-
-        public SecretIdentifier(string identifier)
-            : base("secrets", identifier)
-        {
-        }
+        private static readonly string[] _allAlgorithms = { RSA15, RSAOAEP };
     }
-}
+ }

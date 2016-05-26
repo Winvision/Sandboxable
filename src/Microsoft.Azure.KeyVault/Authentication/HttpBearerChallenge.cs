@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,59 +46,57 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
             return true;
         }
 
-        private readonly Dictionary<string, string> parameters;
-        private readonly string sourceAuthority;
+        private Dictionary<string, string> _parameters = null;
+        private string _sourceAuthority = null;
+        private Uri _sourceUri = null;
 
         /// <summary>
         /// Parses an HTTP WWW-Authentication Bearer challenge from a server.
         /// </summary>
-        /// <param name="requestUri"></param>
         /// <param name="challenge">The AuthenticationHeaderValue to parse</param>
         public HttpBearerChallenge(Uri requestUri, string challenge)
         {
-            var authority = ValidateRequestURI(requestUri);
-            var trimmedChallenge = ValidateChallenge(challenge);
+            string authority = ValidateRequestURI(requestUri);
+            string trimmedChallenge = ValidateChallenge(challenge);
 
-            this.sourceAuthority = authority;
-            this.SourceUri = requestUri;
+            _sourceAuthority = authority;
+            _sourceUri = requestUri;
 
-            this.parameters = new Dictionary<string, string>();
+            _parameters = new Dictionary<string, string>();
 
             // Split the trimmed challenge into a set of name=value strings that
             // are comma separated. The value fields are expected to be within
             // quotation characters that are stripped here.
-            var pairs = trimmedChallenge.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries);
-            if (pairs.Length > 0)
+            String[] pairs = trimmedChallenge.Split(new String[] { "," }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (pairs != null && pairs.Length > 0)
             {
                 // Process the name=value strings
-                foreach (var p in pairs)
+                for (int i = 0; i < pairs.Length; i++)
                 {
-                    var pair = p.Split('=');
+                    String[] pair = pairs[i].Split('=');
+
                     if (pair.Length == 2)
                     {
                         // We have a key and a value, now need to trim and decode
-                        var key = pair[0].Trim().Trim('\"');
-                        var value = pair[1].Trim().Trim('\"');
+                        String key = pair[0].Trim().Trim(new char[] { '\"' });
+                        String value = pair[1].Trim().Trim(new char[] { '\"' });
 
                         if (!string.IsNullOrEmpty(key))
                         {
-                            this.parameters[key] = value;
+                            _parameters[key] = value;
                         }
                     }
                 }
             }
 
             // Minimum set of parameters
-            if (this.parameters.Count < 1)
-            {
-                throw new ArgumentException("Invalid challenge parameters", nameof(challenge));
-            }
+            if (_parameters.Count < 1)
+                throw new ArgumentException("Invalid challenge parameters", "challenge");
 
             // Must specify authorization or authorization_uri
-            if (!this.parameters.ContainsKey(Authorization) && !this.parameters.ContainsKey(AuthorizationUri))
-            {
-                throw new ArgumentException("Invalid challenge parameters", nameof(challenge));
-            }
+            if (!_parameters.ContainsKey(Authorization) && !_parameters.ContainsKey(AuthorizationUri))
+                throw new ArgumentException("Invalid challenge parameters", "challenge");
         }
 
         /// <summary>
@@ -113,7 +111,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// <returns>True when the key is found, false when it is not</returns>
         public bool TryGetValue(string key, out string value)
         {
-            return this.parameters.TryGetValue(key, out value);
+            return _parameters.TryGetValue(key, out value);
         }
 
         /// <summary>
@@ -124,17 +122,13 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         {
             get
             {
-                string value;
+                string value = string.Empty;
 
-                if (this.parameters.TryGetValue("authorization_uri", out value))
-                {
+                if (_parameters.TryGetValue("authorization_uri", out value))
                     return value;
-                }
 
-                if (this.parameters.TryGetValue("authorization", out value))
-                {
+                if (_parameters.TryGetValue("authorization", out value))
                     return value;
-                }
 
                 return string.Empty;
             }
@@ -148,14 +142,12 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         {
             get
             {
-                string value;
+                string value = string.Empty;
 
-                if (this.parameters.TryGetValue("resource", out value))
-                {
+                if (_parameters.TryGetValue("resource", out value))
                     return value;
-                }
 
-                return this.sourceAuthority;
+                return _sourceAuthority;
             }
         }
 
@@ -166,37 +158,40 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         {
             get
             {
-                string value;
+                string value = string.Empty;
 
-                if (this.parameters.TryGetValue("scope", out value))
-                {
+                if (_parameters.TryGetValue("scope", out value))
                     return value;
-                }
 
                 return string.Empty;
             }
         }
 
-        public string SourceAuthority => this.sourceAuthority;
+        public string SourceAuthority
+        {
+            get
+            {
+                return _sourceAuthority;
+            }
+        }
 
         public Uri SourceUri
         {
-            get;
+            get
+            {
+                return _sourceUri;
+            }
         }
 
         private static string ValidateChallenge(string challenge)
         {
             if (string.IsNullOrEmpty(challenge))
-            {
-                throw new ArgumentNullException(nameof(challenge));
-            }
+                throw new ArgumentNullException("challenge");
 
-            var trimmedChallenge = challenge.Trim();
+            string trimmedChallenge = challenge.Trim();
 
             if (!trimmedChallenge.StartsWith(Bearer + " "))
-            {
-                throw new ArgumentException("Challenge is not Bearer", nameof(challenge));
-            }
+                throw new ArgumentException("Challenge is not Bearer", "challenge");
 
             return trimmedChallenge.Substring(Bearer.Length + 1);
         }
@@ -204,19 +199,13 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         private static string ValidateRequestURI(Uri requestUri)
         {
             if (null == requestUri)
-            {
-                throw new ArgumentNullException(nameof(requestUri));
-            }
+                throw new ArgumentNullException("requestUri");
 
             if (!requestUri.IsAbsoluteUri)
-            {
-                throw new ArgumentException("The requestUri must be an absolute URI", nameof(requestUri));
-            }
+                throw new ArgumentException("The requestUri must be an absolute URI", "requestUri");
 
             if (!requestUri.Scheme.Equals("http", StringComparison.CurrentCultureIgnoreCase) && !requestUri.Scheme.Equals("https", StringComparison.CurrentCultureIgnoreCase))
-            {
-                throw new ArgumentException("The requestUri must be HTTP or HTTPS", nameof(requestUri));
-            }
+                throw new ArgumentException("The requestUri must be HTTP or HTTPS", "requestUri");
 
             return requestUri.FullAuthority();
         }

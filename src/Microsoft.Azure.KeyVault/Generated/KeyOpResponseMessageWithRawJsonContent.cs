@@ -21,30 +21,31 @@
 
 using System;
 using System.Linq;
+using Sandboxable.Microsoft.Azure;
 
 namespace Sandboxable.Microsoft.Azure.KeyVault.Internal
 {
     /// <summary>
-    /// Represents a secret operation request.
+    /// Represents the response to a key operation request.
     /// </summary>
-    internal partial class SecretRequestMessageWithRawJsonContent
+    internal partial class KeyOpResponseMessageWithRawJsonContent : AzureOperationResponse
     {
-        private string _rawJsonRequest;
+        private string _keyOpResponse;
         
         /// <summary>
         /// Optional.
         /// </summary>
-        public string RawJsonRequest
+        public string KeyOpResponse
         {
-            get { return this._rawJsonRequest; }
-            set { this._rawJsonRequest = value; }
+            get { return this._keyOpResponse; }
+            set { this._keyOpResponse = value; }
         }
         
         /// <summary>
         /// Initializes a new instance of the
-        /// SecretRequestMessageWithRawJsonContent class.
+        /// KeyOpResponseMessageWithRawJsonContent class.
         /// </summary>
-        public SecretRequestMessageWithRawJsonContent()
+        public KeyOpResponseMessageWithRawJsonContent()
         {
         }
     }

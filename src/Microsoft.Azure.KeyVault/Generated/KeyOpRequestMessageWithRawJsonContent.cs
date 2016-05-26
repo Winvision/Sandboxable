@@ -25,9 +25,9 @@ using System.Linq;
 namespace Sandboxable.Microsoft.Azure.KeyVault.Internal
 {
     /// <summary>
-    /// Represents a secret operation request.
+    /// Represents a key operation request.
     /// </summary>
-    internal partial class SecretRequestMessageWithRawJsonContent
+    internal partial class KeyOpRequestMessageWithRawJsonContent
     {
         private string _rawJsonRequest;
         
@@ -42,9 +42,9 @@ namespace Sandboxable.Microsoft.Azure.KeyVault.Internal
         
         /// <summary>
         /// Initializes a new instance of the
-        /// SecretRequestMessageWithRawJsonContent class.
+        /// KeyOpRequestMessageWithRawJsonContent class.
         /// </summary>
-        public SecretRequestMessageWithRawJsonContent()
+        public KeyOpRequestMessageWithRawJsonContent()
         {
         }
     }

@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,34 +22,70 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
 {
     public sealed class HttpBearerChallengeCache
     {
-        private static readonly HttpBearerChallengeCache Instance = new HttpBearerChallengeCache();
+        private static HttpBearerChallengeCache _instance = new HttpBearerChallengeCache();
 
         public static HttpBearerChallengeCache GetInstance()
         {
-            return Instance;
+            return _instance;
         }
 
-        private readonly Dictionary<string, HttpBearerChallenge> cache;
-        private readonly object cacheLock;
+        private Dictionary<string, HttpBearerChallenge> _cache = null;
+        private object _cacheLock = null;
 
         private HttpBearerChallengeCache()
         {
-            this.cache = new Dictionary<string, HttpBearerChallenge>();
-            this.cacheLock = new object();
+            _cache = new Dictionary<string, HttpBearerChallenge>();
+            _cacheLock = new object();
         }
-        
+
+#if WINDOWS_PHONE
+
+        public HttpBearerChallenge this[Uri url]
+        {
+            get
+            {
+                if ( url == null )
+                    throw new ArgumentNullException( "url" );
+
+                HttpBearerChallenge value = null;
+
+                lock ( _cacheLock )
+                {
+                    _cache.TryGetValue( url.FullAuthority(), out value );
+                }
+
+                return value;
+            }
+            set
+            {
+                if ( url == null )
+                    throw new ArgumentNullException( "url" );
+
+                if ( value != null && string.Compare( url.FullAuthority(), value.SourceAuthority, StringComparison.OrdinalIgnoreCase ) != 0 )
+                    throw new ArgumentException( "Source URL and Challenge URL do not match" );
+
+                lock ( _cacheLock )
+                {
+                    if ( value == null )
+                        _cache.Remove( url.FullAuthority() );
+                    else
+                        _cache[url.FullAuthority()] = value;
+                }
+            }
+        }
+
+#else
+
         public HttpBearerChallenge GetChallengeForURL(Uri url)
         {
             if (url == null)
-            {
-                throw new ArgumentNullException(nameof(url));
-            }
+                throw new ArgumentNullException("url");
 
             HttpBearerChallenge value = null;
 
-            lock (this.cacheLock)
+            lock (_cacheLock)
             {
-                this.cache.TryGetValue(url.FullAuthority(), out value);
+                _cache.TryGetValue(url.FullAuthority(), out value);
             }
 
             return value;
@@ -58,44 +94,37 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         public void RemoveChallengeForURL(Uri url)
         {
             if (url == null)
-            {
-                throw new ArgumentNullException(nameof(url));
-            }
+                throw new ArgumentNullException("url");
 
-            lock (this.cacheLock)
+            lock (_cacheLock)
             {
-                this.cache.Remove(url.FullAuthority());
+                _cache.Remove(url.FullAuthority());
             }
         }
 
         public void SetChallengeForURL(Uri url, HttpBearerChallenge value)
         {
             if (url == null)
-            {
-                throw new ArgumentNullException(nameof(url));
-            }
+                throw new ArgumentNullException("url");
 
             if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
+                throw new ArgumentNullException("value");
 
             if (string.Compare(url.FullAuthority(), value.SourceAuthority, StringComparison.OrdinalIgnoreCase) != 0)
-            {
                 throw new ArgumentException("Source URL and Challenge URL do not match");
-            }
 
-            lock (this.cacheLock)
+            lock (_cacheLock)
             {
-                this.cache[url.FullAuthority()] = value;
+                _cache[url.FullAuthority()] = value;
             }
         }
+#endif
 
         public void Clear()
         {
-            lock (this.cacheLock)
+            lock (_cacheLock)
             {
-                this.cache.Clear();
+                _cache.Clear();
             }
         }
     }

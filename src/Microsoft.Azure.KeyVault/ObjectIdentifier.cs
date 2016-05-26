@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,29 +25,21 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         protected static bool IsObjectIdentifier(string collection, string identifier)
         {
             if (string.IsNullOrEmpty(collection))
-            {
-                throw new ArgumentNullException(nameof(collection));
-            }
+                throw new ArgumentNullException("collection");
 
             if (string.IsNullOrEmpty(identifier))
-            {
                 return false;
-            }
 
             try
             {
-                var baseUri = new Uri(identifier, UriKind.Absolute);
+                Uri baseUri = new Uri(identifier, UriKind.Absolute);
 
                 // We expect an identifier with either 3 or 4 segments: host + collection + name [+ version]
                 if (baseUri.Segments.Length != 3 && baseUri.Segments.Length != 4)
-                {
                     return false;
-                }
 
                 if (!string.Equals(baseUri.Segments[1], collection + "/"))
-                {
                     return false;
-                }
 
                 return true;
             }
@@ -58,71 +50,63 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
             return false;
         }
 
+        private readonly string _vault;
+        private readonly string _vaultWithoutScheme;
+        private readonly string _name;
+        private readonly string _version;
+
+        private readonly string _baseIdentifier;
+        private readonly string _identifier;
+
         protected ObjectIdentifier(string vault, string collection, string name, string version = null)
         {
             if (string.IsNullOrEmpty(vault))
-            {
-                throw new ArgumentNullException(nameof(vault));
-            }
+                throw new ArgumentNullException("vault");
 
             if (string.IsNullOrEmpty(collection))
-            {
-                throw new ArgumentNullException(nameof(collection));
-            }
+                throw new ArgumentNullException("collection");
 
             if (string.IsNullOrEmpty(name))
-            {
-                throw new ArgumentNullException(nameof(name));
-            }
+                throw new ArgumentNullException("keyName");
 
             var baseUri = new Uri(vault, UriKind.Absolute);
 
-            this.Name = name;
-            this.Version = version;
-            this.Vault = string.Format(CultureInfo.InvariantCulture, "{0}://{1}", baseUri.Scheme, baseUri.FullAuthority());
-            this.VaultWithoutScheme = baseUri.Authority;
-            this.BaseIdentifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", this.Vault, collection, this.Name);
-            this.Identifier = string.IsNullOrEmpty(this.Version) ? this.Name : string.Format(CultureInfo.InvariantCulture, "{0}/{1}", this.Name, this.Version);
-            this.Identifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", this.Vault, collection, this.Identifier);
+            _name = name;
+            _version = version;
+            _vault = string.Format(CultureInfo.InvariantCulture, "{0}://{1}", baseUri.Scheme, baseUri.FullAuthority());
+            _vaultWithoutScheme = baseUri.Authority;
+            _baseIdentifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", _vault, collection, _name);
+            _identifier = string.IsNullOrEmpty(_version) ? _name : string.Format(CultureInfo.InvariantCulture, "{0}/{1}", _name, _version);
+            _identifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", _vault, collection, _identifier);
         }
 
         protected ObjectIdentifier(string collection, string identifier)
         {
             if (string.IsNullOrEmpty(collection))
-            {
-                throw new ArgumentNullException(nameof(collection));
-            }
+                throw new ArgumentNullException("collection");
 
             if (string.IsNullOrEmpty(identifier))
-            {
-                throw new ArgumentNullException(nameof(identifier));
-            }
+                throw new ArgumentNullException("identifier");
 
-            var baseUri = new Uri(identifier, UriKind.Absolute);
+            Uri baseUri = new Uri(identifier, UriKind.Absolute);
 
             // We expect and identifier with either 3 or 4 segments: host + collection + name [+ version]
             if (baseUri.Segments.Length != 3 && baseUri.Segments.Length != 4)
-            {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid ObjectIdentifier: {0}. Bad number of segments: {1}", identifier, baseUri.Segments.Length));
-            }
+                throw new ArgumentException(String.Format(CultureInfo.InvariantCulture, "Invalid ObjectIdentifier: {0}. Bad number of segments: {1}", identifier, baseUri.Segments.Length));
 
             if (!string.Equals(baseUri.Segments[1], collection + "/"))
-            {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid ObjectIdentifier: {0}. segment [1] should be '{1}/', found '{2}'", identifier, collection, baseUri.Segments[1]));
-            }
+                throw new ArgumentException(String.Format(CultureInfo.InvariantCulture, "Invalid ObjectIdentifier: {0}. segment [1] should be '{1}/', found '{2}'", identifier, collection, baseUri.Segments[1]));
 
-            this.Name = baseUri.Segments[2].Substring(0, baseUri.Segments[2].Length).TrimEnd('/');
+            _name = baseUri.Segments[2].Substring(0, baseUri.Segments[2].Length).TrimEnd('/');
 
             if (baseUri.Segments.Length == 4)
-            {
-                this.Version = baseUri.Segments[3].Substring(0, baseUri.Segments[3].Length).TrimEnd('/');
-            }
+                _version = baseUri.Segments[3].Substring(0, baseUri.Segments[3].Length).TrimEnd('/');
 
-            this.Vault = string.Format(CultureInfo.InvariantCulture, "{0}://{1}", baseUri.Scheme, baseUri.FullAuthority());
-            this.VaultWithoutScheme = baseUri.Authority;
-            this.BaseIdentifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", this.Vault, collection, this.Name);
-            this.Identifier = string.IsNullOrEmpty(this.Version) ? this.Name : string.Format(CultureInfo.InvariantCulture, "{0}/{1}", this.Name, this.Version);
-            this.Identifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", this.Vault, collection, this.Identifier);
+            _vault = string.Format(CultureInfo.InvariantCulture, "{0}://{1}", baseUri.Scheme, baseUri.FullAuthority());
+            _vaultWithoutScheme = baseUri.Authority;
+            _baseIdentifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", _vault, collection, _name);
+            _identifier = string.IsNullOrEmpty(_version) ? _name : string.Format(CultureInfo.InvariantCulture, "{0}/{1}", _name, _version);
+            _identifier = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", _vault, collection, _identifier);
         }
 
         /// <summary>
@@ -130,7 +114,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         public string BaseIdentifier
         {
-            get;
+            get { return _baseIdentifier; }
         }
 
         /// <summary>
@@ -138,7 +122,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         public string Identifier
         {
-            get;
+            get { return _identifier; }
         }
 
         /// <summary>
@@ -146,7 +130,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         public string Name
         {
-            get;
+            get { return _name; }
         }
 
         /// <summary>
@@ -154,12 +138,12 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         public string Vault
         {
-            get;
+            get { return _vault; }
         }
 
         public string VaultWithoutScheme
         {
-            get;
+            get { return _vaultWithoutScheme; }
         }
 
         /// <summary>
@@ -167,12 +151,48 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         public string Version
         {
-            get;
+            get { return _version; }
         }
 
         public override string ToString()
         {
-            return this.Identifier;
+            return _identifier;
+        }
+    }
+
+    public sealed class KeyIdentifier : ObjectIdentifier
+    {
+        public static bool IsKeyIdentifier(string identifier)
+        {
+            return ObjectIdentifier.IsObjectIdentifier("keys", identifier);
+        }
+
+        public KeyIdentifier(string vault, string name, string version = null)
+            : base(vault, "keys", name, version)
+        {
+        }
+
+        public KeyIdentifier(string identifier)
+            : base("keys", identifier)
+        {
+        }
+    }
+
+    public sealed class SecretIdentifier : ObjectIdentifier
+    {
+        public static bool IsSecretIdentifier(string identifier)
+        {
+            return ObjectIdentifier.IsObjectIdentifier("secrets", identifier);
+        }
+
+        public SecretIdentifier(string vault, string name, string version = null)
+            : base(vault, "secrets", name, version)
+        {
+        }
+
+        public SecretIdentifier(string identifier)
+            : base("secrets", identifier)
+        {
         }
     }
 }
