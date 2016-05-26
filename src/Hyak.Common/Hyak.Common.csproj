@@ -51,6 +51,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TracingAdapter.cs" />
+    <Compile Include="TracingExtensions.cs" />
+    <Compile Include="ICloudTracingInterceptor.cs" />
+    <Compile Include="IServiceOperations.cs" />
     <Compile Include="LazyList.cs" />
     <Compile Include="ILazyCollection.cs" />
     <Compile Include="LazyDictionary.cs" />
