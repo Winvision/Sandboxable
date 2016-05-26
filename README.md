@@ -18,7 +18,7 @@ If you encounter a .NET sandbox today chances are it's running with [Security-Tr
 
 ## The problem 
 As developers we use a lot of library code like NuGet packages because we don't want to reinvent the wheel. The 
-downside is that most of these libraries are not written with a sandbox process in mind. 
+downside is that most of these libraries are not written with a Partial Trust environment in mind. 
 
 When we embed these libraries to our code in the sandbox we encounter 2 common issues
 
