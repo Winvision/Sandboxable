@@ -15,16 +15,18 @@
 // See the Apache License, Version 2.0 for the specific language
 // governing permissions and limitations under the License.
 
-using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
+using System;
+using System.Runtime.Remoting.Messaging;
 
 namespace Sandboxable.Microsoft.Azure.KeyVault
 {
     /// <summary>
-    /// The attributes of a secret managed by the KeyVault service
+    /// The attributes of a key managed by the KeyVault service
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
-    public class SecretAttributes
+    public class KeyAttributes
     {
         public const string PropertyEnabled = "enabled";
         public const string PropertyNotBefore = "nbf";
@@ -32,30 +34,30 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         public const string PropertyCreated = "created";
         public const string PropertyUpdated = "updated";
 
-        #region UnixTime
+        #region UnixTime        
         /// <summary>
         /// NotBefore date as the number of seconds since the Unix Epoch (1/1/1970)
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = PropertyNotBefore, Required = Required.Default)]
-        public long? _notBeforeUnixTime { get; set; }
+        private long? _notBeforeUnixTime { get; set; }
 
         /// <summary>
         /// Expiry date as the number of seconds since the Unix Epoch (1/1/1970)
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = PropertyExpires, Required = Required.Default)]
-        public long? _expiresUnixTime { get; set; }
+        private long? _expiresUnixTime { get; set; }
 
         /// <summary>
         /// Creation time as the number of seconds since the Unix Epoch (1/1/1970)
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = PropertyCreated, Required = Required.Default)]
-        public long? _createdUnixTime { get; set; }
+        private long? _createdUnixTime { get; set; }
 
         /// <summary>
         /// Last updated time as the number of seconds since the Unix Epoch (1/1/1970)
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = PropertyUpdated, Required = Required.Default)]
-        public long? _updatedUnixTime { get; set; }
+        private long? _updatedUnixTime { get; set; }
 
         #endregion
 
@@ -64,7 +66,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = PropertyEnabled, Required = Required.Default)]
         public bool? Enabled { get; set; }
-
+       
         /// <summary>
         /// Not before date in UTC
         /// </summary>
@@ -79,7 +81,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
                 _notBeforeUnixTime = ToUnixTime(value);
             }
         }
-
+        
         /// <summary>
         /// Expiry date in UTC
         /// </summary>
@@ -94,7 +96,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
                 _expiresUnixTime = ToUnixTime(value);
             }
         }
-
+       
         /// <summary>
         /// Creation time in UTC
         /// </summary>
@@ -103,9 +105,9 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
             get
             {
                 return FromUnixTime(_createdUnixTime);
-            }
+            }            
         }
-
+        
         /// <summary>
         /// Last updated time in UTC
         /// </summary>
@@ -114,7 +116,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
             get
             {
                 return FromUnixTime(_updatedUnixTime);
-            }
+            }            
         }        
 
         /// <summary>
@@ -128,7 +130,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// Created   = null
         /// Updated   = null
         /// </remarks>
-        public SecretAttributes()
+        public KeyAttributes()
         {
             Enabled = null;
             NotBefore = null;

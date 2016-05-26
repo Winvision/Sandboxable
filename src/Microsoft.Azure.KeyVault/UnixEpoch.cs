@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// </summary>
         /// <param name="seconds">The number of seconds since midnight (UTC) on 1st January 1970</param>
         /// <returns>The date in UTC form</returns>
-        public static DateTime FromUnixTime(long seconds)
+        public static DateTime FromUnixTime( long seconds )
         {
-            return EpochDate.AddSeconds(seconds);
+            return EpochDate.AddSeconds( seconds );
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// <returns>Number of seconds from January 1 1970.</returns>
         public static long ToUnixTime( this DateTime dateTime )
         {
-            return (long)dateTime.Subtract(EpochDate).TotalSeconds;
+            return ( long )dateTime.Subtract( EpochDate ).TotalSeconds;
         }
     }
 }

@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,24 +28,24 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
 {
     public class KeyVaultCredential : CloudCredentials
     {        
-        public event KeyVaultClient.AuthenticationCallback OnAuthenticate;
+        public event KeyVaultClient.AuthenticationCallback OnAuthenticate = null;
 
         public string Token { get; set; }
 
         public KeyVaultCredential(KeyVaultClient.AuthenticationCallback authenticationCallback)
         {
-            this.OnAuthenticate = authenticationCallback;
+            OnAuthenticate = authenticationCallback;
         }
 
         private async Task<string> PreAuthenticate(Uri url)
         {
-            if (this.OnAuthenticate != null)
+            if (OnAuthenticate != null)
             {
                 var challenge = HttpBearerChallengeCache.GetInstance().GetChallengeForURL(url);
 
                 if (challenge != null)
                 {
-                    return await this.OnAuthenticate(challenge.AuthorizationServer, challenge.Resource, challenge.Scope).ConfigureAwait(false);
+                    return await OnAuthenticate(challenge.AuthorizationServer, challenge.Resource, challenge.Scope).ConfigureAwait(false);
                 }
             }
 
@@ -55,7 +55,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         protected async Task<string> PostAuthenticate(HttpResponseMessage response)
         {
             // An HTTP 401 Not Authorized error; handle if an authentication callback has been supplied
-            if (this.OnAuthenticate != null)
+            if (OnAuthenticate != null)
             {
                 // Extract the WWW-Authenticate header and determine if it represents an OAuth2 Bearer challenge
                 var authenticateHeader = response.Headers.WwwAuthenticate.ElementAt(0).ToString();
@@ -63,12 +63,15 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
                 if (HttpBearerChallenge.IsBearerChallenge(authenticateHeader))
                 {
                     var challenge = new HttpBearerChallenge(response.RequestMessage.RequestUri, authenticateHeader);
-                    
-                    // Update challenge cache
-                    HttpBearerChallengeCache.GetInstance().SetChallengeForURL(response.RequestMessage.RequestUri, challenge);
 
-                    // We have an authentication challenge, use it to get a new authorization token
-                    return await this.OnAuthenticate(challenge.AuthorizationServer, challenge.Resource, challenge.Scope).ConfigureAwait(false);
+                    if (challenge != null)
+                    {
+                        // Update challenge cache
+                        HttpBearerChallengeCache.GetInstance().SetChallengeForURL(response.RequestMessage.RequestUri, challenge);
+
+                        // We have an authentication challenge, use it to get a new authorization token
+                        return await OnAuthenticate(challenge.AuthorizationServer, challenge.Resource, challenge.Scope).ConfigureAwait(false);
+                    }
                 }
             }
 
@@ -79,26 +82,24 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         {
             if (request == null)
             {
-                throw new ArgumentNullException(nameof(request));
+                throw new ArgumentNullException("request");
             }
 
-            var accessToken = await this.PreAuthenticate(request.RequestUri).ConfigureAwait(false);
+            var accessToken = await PreAuthenticate(request.RequestUri).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(accessToken))
-            {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-            }
             else
             {
                 HttpResponseMessage response;
-                var client = new HttpClient();
+                HttpClient client = new HttpClient();
                 using (var r = new HttpRequestMessage(request.Method, request.RequestUri))
                 {                    
-                    response = await client.SendAsync(r, cancellationToken).ConfigureAwait(false);
+                    response = await client.SendAsync(r).ConfigureAwait(false);
                 }
 
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    accessToken = await this.PostAuthenticate(response).ConfigureAwait(false);
+                    accessToken = await PostAuthenticate(response).ConfigureAwait(false);
 
                     if (!string.IsNullOrEmpty(accessToken))
                     {

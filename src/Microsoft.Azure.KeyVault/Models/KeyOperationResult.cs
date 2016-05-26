@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,22 +15,20 @@
 // See the Apache License, Version 2.0 for the specific language
 // governing permissions and limitations under the License.
 
-using System;
-using System.Collections.Generic;
+using Sandboxable.Microsoft.Azure.KeyVault.WebKey.Json;
 using Newtonsoft.Json;
 
 namespace Sandboxable.Microsoft.Azure.KeyVault
 {
     [JsonObject]
-    public class Error
+    public class KeyOperationResult
     {
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = "code", Required = Required.Default)]
-        public string Code { get; set; }
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = MessagePropertyNames.Kid, Required = Required.Always)]
+        public string Kid { get; set; }
 
-        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = "message", Required = Required.Default)]
-        public string Message { get; set; }
-
-        [JsonExtensionData]
-        public Dictionary<string, object> AdditionalInfo { get; set; }
+        // Encrypted data.
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = MessagePropertyNames.Value, Required = Required.Always)]
+        [JsonConverter(typeof(Base64UrlConverter))]
+        public byte[] Result { get; set; }        
     }
 }

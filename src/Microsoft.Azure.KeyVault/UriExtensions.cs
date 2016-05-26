@@ -1,5 +1,5 @@
-//
-// Copyright � Microsoft Corporation, All Rights Reserved
+﻿//
+// Copyright © Microsoft Corporation, All Rights Reserved
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,12 +29,12 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         /// <returns>The complete authority for the Uri</returns>
         public static string FullAuthority(this Uri uri)
         {
-            var authority = uri.Authority;
+            string authority = uri.Authority;
 
             if (!authority.Contains(":") && uri.Port > 0)
             {
                 // Append port for complete authority
-                authority = $"{uri.Authority}:{uri.Port}";
+                authority = string.Format("{0}:{1}", uri.Authority, uri.Port.ToString());
             }
 
             return authority;
@@ -50,9 +50,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         {
             // Sytem.Uri provides reliable parsing
             if (string.IsNullOrEmpty(text))
-            {
                 return string.Empty;
-            }
 
             return Uri.EscapeDataString(text).Replace("%20", "+");
         }
@@ -65,9 +63,7 @@ namespace Sandboxable.Microsoft.Azure.KeyVault
         public static string UrlFormDecode(string text)
         {
             if (string.IsNullOrEmpty(text))
-            {
                 return string.Empty;
-            }
 
             // pre-process for + sign space formatting since System.Uri doesn't handle it
             // plus literals are encoded as %2b normally so this should be safe
