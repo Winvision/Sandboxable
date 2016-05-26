@@ -51,6 +51,11 @@ When we embed these libraries to our code in the sandbox we encounter 2 common i
     ```
 
 *  Serialize non-public classes, fields or properties
+    
+    ```csharp
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore, PropertyName = PropertyNotBefore, Required = Required.Default)]
+    private long? _notBeforeUnixTime { get; set; }
+    ```
 
 ## The solution
 When we encounter a NuGet package that fails to load or execute in the sandbox and it's source is available we make a *Sandboxable* copy of it.  
@@ -72,9 +77,9 @@ A checked box means there is a Sandboxable alternative available in this project
 - [x] Windows.Azure.Common
   * Changed dependency from Hyak.Common to Sandboxable.Hyak.Common
   * Removed dependency on Microsoft.WindowsAzure.Common.Dependencies
-- [ ] Microsoft.Azure.KeyVault 
+- [x] Microsoft.Azure.KeyVault 
   * Changed dependency from Windows.Azure.Common to Sandboxable.Windows.Azure.Common
-  * **At this moment severely limited to retrieving secrets only**
+  * Changed serialized private fields to public
 - [x] Microsoft.Azure.Management.KeyVault
   * Changed dependency from Windows.Azure.Common to Sandboxable.Windows.Azure.Common
 - [x] Microsoft.IdentityModel.Clients.ActiveDirectory
