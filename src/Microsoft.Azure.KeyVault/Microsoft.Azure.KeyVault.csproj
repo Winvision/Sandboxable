@@ -41,7 +41,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.42\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
+      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.51\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Sandboxable.Microsoft.Azure.Common, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
