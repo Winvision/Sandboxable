@@ -8,6 +8,9 @@
     <language>en-US</language>
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
+    <dependencies>
+      <dependency id="Newtonsoft.Json" version="8.0.0" />
+    </dependencies>
   </metadata>
   <files>
     <file src="bin\$configuration$\$id$.pdb" target="lib\net452\" />
