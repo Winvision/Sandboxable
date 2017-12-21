@@ -1,15 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>$id$</id>
+    <id>Sandboxable.Microsoft.IdentityModel.Clients.ActiveDirectory</id>
     <version>0.0.0.0</version>
     <authors>Winvision</authors>
-    <description>This package contains the binaries of the Active Directory Authentication Library (ADAL). ADAL provides easy to use authentication functionality for your .NET client and Windows Store apps by taking advantage of Windows Server Active Directory and Windows Azure Active Directory.</description>
+    <description>This library is adjusted to run in a Partial Trust environment. This package contains the binaries of the Active Directory Authentication Library (ADAL). ADAL provides easy to use authentication functionality for your .NET client and Windows Store apps by taking advantage of Windows Server Active Directory and Windows Azure Active Directory.</description>
     <language>en-US</language>
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
+    <dependencies>
+      <dependency id="BouncyCastle.Crypto.dll" version="1.8.1" />
+    </dependencies>
   </metadata>
   <files>
-    <file src="bin\$configuration$\$id$.pdb" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.IdentityModel.Clients.ActiveDirectory.dll" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.IdentityModel.Clients.ActiveDirectory.pdb" target="lib\net452\" />
   </files>
 </package>

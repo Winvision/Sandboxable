@@ -20,7 +20,7 @@ function Pack-Nuget([string]$Name) {
 	if ((git log -1 --pretty=format:%H) -eq (git log -1 --pretty=format:%H src/$name) -or ($merge -and (git log $parents --pretty=format:%H src/$name).length -gt 0)) {
 		Write-Host -ForegroundColor Green " -- Yep"
 		Write-Host
-		nuget pack src\$name\$name.csproj -version $version
+		nuget pack src\$name\$name.nuspec -version $version
 		Write-Host
 	} else {
 		Write-Host -ForegroundColor Red " -- Nope"
