@@ -15,6 +15,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------------------
 
+#if !(WINDOWS_RT || NETCORE)
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
 {
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core;
@@ -136,3 +137,4 @@ if !ASTORIA_LIGHT && !WINDOWS_RT
         }
     }
 }
+#endif

@@ -24,6 +24,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
     using System.Collections.Generic;
     using System.IO;
     using System.Net;
+#if NETCORE || WINDOWS_RT
+    using System.Net.Http;
+    using System.Net.Http.Headers;
+#endif
 
     internal abstract class ExecutorBase
     {
@@ -32,6 +36,18 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             if (!string.IsNullOrEmpty(executionState.OperationContext.ClientRequestID))
             {
                 executionState.Req.Headers.Add(Constants.HeaderConstants.ClientRequestIdHeader, executionState.OperationContext.ClientRequestID);
+            }
+            
+
+            if (!string.IsNullOrEmpty(executionState.OperationContext.CustomUserAgent))
+            {
+#if WINDOWS_DESKTOP
+                executionState.Req.UserAgent = executionState.OperationContext.CustomUserAgent + " " + Constants.HeaderConstants.UserAgent;
+#elif NETCORE || WINDOWS_RT
+                executionState.Req.Headers.UserAgent.TryParseAdd(executionState.OperationContext.CustomUserAgent);
+                executionState.Req.Headers.UserAgent.Add(new ProductInfoHeaderValue(Constants.HeaderConstants.UserAgentProductName, Constants.HeaderConstants.UserAgentProductVersion));
+                executionState.Req.Headers.UserAgent.Add(new ProductInfoHeaderValue(Constants.HeaderConstants.UserAgentComment));
+#endif
             }
 
             if (executionState.OperationContext.UserHeaders != null && executionState.OperationContext.UserHeaders.Count > 0)
@@ -151,10 +167,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
         private static RequestEventArgs GenerateRequestEventArgs<T>(ExecutionState<T> executionState)
         {
             RequestEventArgs args = new RequestEventArgs(executionState.Cmd.CurrentResult);
-
+#if WINDOWS_RT || NETCORE
+            args.RequestUri = executionState.Req.RequestUri;
+#else
             args.Request = executionState.Req;
             args.Response = executionState.Resp;
-
+#endif
             return args;
         }
 
@@ -177,6 +195,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             return false;
         }
 
+#if WINDOWS_DESKTOP
         protected static bool CheckCancellation<T>(ExecutionState<T> executionState)
         {
             lock (executionState.CancellationLockerObject)
@@ -189,7 +208,24 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
                 return executionState.CancelRequested;
             }
         }
+#endif
 
+#if NETCORE
+        internal static StorageException TranslateExceptionBasedOnParseError(Exception ex, RequestResult currentResult, HttpResponseMessage response, Func<Stream, HttpResponseMessage, string, StorageExtendedErrorInformation> parseError)
+        {
+            if (parseError != null)
+            {
+                return StorageException.TranslateException(
+                    ex,
+                    currentResult,
+                    (stream) => parseError(stream, response, null), response);
+            }
+            else
+            {
+               return StorageException.TranslateException(ex, currentResult, null, response);
+            }
+        }
+#else
         internal static StorageException TranslateExceptionBasedOnParseError(Exception ex, RequestResult currentResult, HttpWebResponse response, Func<Stream, HttpWebResponse, string, StorageExtendedErrorInformation> parseError)
         {
             if (parseError != null)
@@ -204,7 +240,9 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
                 return StorageException.TranslateException(ex, currentResult, null);
             }
         }
+#endif
 
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
         internal static StorageException TranslateDataServiceExceptionBasedOnParseError(Exception ex, RequestResult currentResult, Func<Stream, IDictionary<string, string>, string, StorageExtendedErrorInformation> parseDataServiceError)
         {
             if (parseDataServiceError != null)
@@ -219,5 +257,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
                 return StorageException.TranslateDataServiceException(ex, currentResult, null);
             }
         }
+#endif
     }
 }

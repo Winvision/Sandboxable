@@ -15,6 +15,8 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using System.Collections.Generic;
+
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Auth
 {
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core;
@@ -29,7 +31,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Auth
 #endif
 
     /// <summary>
-    /// Represents a set of credentials used to authenticate access to a Windows Azure storage account.
+    /// Represents a set of credentials used to authenticate access to a Microsoft Azure storage account.
     /// </summary>
     public sealed class StorageCredentials
     {
@@ -100,7 +102,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Auth
         }
 
         /// <summary>
-        /// Gets the value of the shared access signature token's <code>sig</code> parameter.
+        /// Gets the value of the shared access signature token's <c>sig</c> parameter.
         /// </summary>
         public string SASSignature
         {
@@ -373,8 +375,13 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Auth
         {
             SasQueryBuilder newQueryBuilder = new SasQueryBuilder(this.SASToken);
 
+            if(newQueryBuilder.ContainsQueryStringName(Constants.QueryConstants.ApiVersion))
+            {
+                string errorMessage = string.Format(SR.UnexpectedParameterInSAS);
+                throw new ArgumentException(errorMessage);
+            }
+            
             newQueryBuilder.Add(Constants.QueryConstants.ApiVersion, Constants.HeaderConstants.TargetStorageVersion);
-
             this.queryBuilder = newQueryBuilder;
         }
     }

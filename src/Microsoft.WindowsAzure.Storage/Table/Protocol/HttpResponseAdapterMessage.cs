@@ -15,8 +15,8 @@
 // </copyright>
 // -----------------------------------------------------------------------------------------
 
-using Microsoft.Data.OData;
-    
+using Microsoft.Data.OData; // Sandboxable: Must be outside namespace
+
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 {
     using System;

@@ -32,7 +32,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
     using System.Threading.Tasks;
 
     /// <summary>
-    /// Represents a query against a Windows Azure table.
+    /// Represents a query against a Microsoft Azure table.
     /// </summary>
     /// <typeparam name="TElement">A class which implements <see cref="ITableEntity"/>.</typeparam>
     public partial class TableQuery<TElement> : IQueryable<TElement>
@@ -559,7 +559,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             queryCmd.RetrieveResponseStream = true;
             queryCmd.SignRequest = client.AuthenticationHandler.SignRequest;
             queryCmd.Builder = builder;
-            queryCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
+            queryCmd.ParseError = ODataErrorHelper.ReadFromStreamUsingODataLib;
             queryCmd.BuildRequestDelegate = (uri, queryBuilder, timeout, useVersionHeader, ctx) => TableOperationHttpWebRequestFactory.BuildRequestForTableQuery(uri, queryBuilder, timeout, useVersionHeader, ctx, requestOptions.PayloadFormat.Value);
 
             queryCmd.PreProcessResponse = (cmd, resp, ex, ctx) => HttpResponseParsers.ProcessExpectedStatusCodeNoException(HttpStatusCode.OK, resp != null ? resp.StatusCode : HttpStatusCode.Unused, null /* retVal */, cmd, ex);

@@ -22,10 +22,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
 
 #if WINDOWS_RT
     using System.Runtime.InteropServices.WindowsRuntime;
+    using Windows.Storage.Streams;
     using Windows.Security.Cryptography;
     using Windows.Security.Cryptography.Core;
-    using Windows.Storage.Streams;
-#elif !PORTABLE
+#else
     using System.Security.Cryptography;
 #endif
 
@@ -39,13 +39,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
 
 #if WINDOWS_RT
         private CryptographicHash hash = null;
-#elif (WINDOWS_PHONE && WINDOWS_DESKTOP) || PORTABLE
+#elif NETCORE
+        private IncrementalHash hash = null;
+
+#elif (WINDOWS_PHONE && WINDOWS_DESKTOP)
 
 #else
         private MD5 hash = null;
 #endif
 
-#if ASPNET_K
+#if NETCORE
         private System.IO.MemoryStream inputStream = new System.IO.MemoryStream();
 #endif
 
@@ -56,12 +59,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             this.hash = HashAlgorithmProvider.OpenAlgorithm("MD5").CreateHash();
 #elif WINDOWS_PHONE
             throw new NotSupportedException(SR.WindowsPhoneDoesNotSupportMD5);
-#elif PORTABLE
-            throw new NotSupportedException(SR.PortableDoesNotSupportMD5);
-#elif ASPNET_K
-            this.hash = MD5.Create();
+#elif NETCORE
+            this.hash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
 #else
-            this.hash = this.version1MD5 ? MD5.Create() : new NativeMD5();
+            // Sandboxable: No native methods
+            //this.hash = this.version1MD5 ? MD5.Create() : new NativeMD5();
+            this.hash = MD5.Create();
 #endif
         }
 
@@ -79,10 +82,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
                 this.hash.Append(input.AsBuffer(offset, count));
 #elif WINDOWS_PHONE && WINDOWS_DESKTOP
                 throw new NotSupportedException(SR.WindowsPhoneDoesNotSupportMD5);
-#elif PORTABLE
-                throw new NotSupportedException(SR.PortableDoesNotSupportMD5); 
-#elif ASPNET_K
-                inputStream.Write(input, offset, count);
+#elif NETCORE
+                this.hash.AppendData(input, offset, count);
 #else
                 this.hash.TransformBlock(input, offset, count, null, 0);
 #endif
@@ -100,10 +101,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             return CryptographicBuffer.EncodeToBase64String(md5HashBuff);
 #elif WINDOWS_PHONE && WINDOWS_DESKTOP
             throw new NotSupportedException(SR.WindowsPhoneDoesNotSupportMD5);
-#elif PORTABLE
-            throw new NotSupportedException(SR.PortableDoesNotSupportMD5);
-#elif ASPNET_K 
-            return Convert.ToBase64String(this.hash.ComputeHash(inputStream.ToArray()));
+#elif NETCORE
+            return Convert.ToBase64String(this.hash.GetHashAndReset());
 #else
             this.hash.TransformFinalBlock(new byte[0], 0, 0);
             return Convert.ToBase64String(this.hash.Hash);
@@ -112,7 +111,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
 
         public void Dispose()
         {
-#if (WINDOWS_DESKTOP && !WINDOWS_PHONE && !PORTABLE) || ASPNET_K
+#if (WINDOWS_DESKTOP && !WINDOWS_PHONE) || NETCORE
             if (this.hash != null)
             {
                 ((IDisposable)this.hash).Dispose();
@@ -120,7 +119,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             }
 #endif
 
-#if ASPNET_K
+#if NETCORE
             this.inputStream.Dispose();
             this.inputStream = null;
 #endif

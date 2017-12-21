@@ -28,7 +28,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
     using System.Globalization;
 
     /// <summary>
-    /// Represents a Windows Azure page blob.
+    /// Represents a Microsoft Azure page blob.
     /// </summary>
     public partial class CloudPageBlob : CloudBlob, ICloudBlob
     {

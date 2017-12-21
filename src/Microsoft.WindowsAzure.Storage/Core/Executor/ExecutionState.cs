@@ -23,14 +23,23 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
     using System;
     using System.Globalization;
     using System.IO;
+
+#if WINDOWS_RT || NETCORE
+    using System.Net.Http;
+#else
     using System.Net;
     using System.Threading;
+#endif
 
     // This class encapsulates a StorageCommand and stores state about its execution.
     // Note conceptually there is some overlap between ExecutionState and operationContext, however the 
     // operationContext is the user visible object and the ExecutionState is an internal object used to coordinate execution.
+#if WINDOWS_RT || NETCORE
+    internal class ExecutionState<T> : IDisposable
+#else
     // If we are exposing APM then derive this class from the StorageCommandAsyncResult
     internal class ExecutionState<T> : StorageCommandAsyncResult
+#endif
     {
         public ExecutionState(StorageCommandBase<T> cmd, IRetryPolicy policy, OperationContext operationContext)
         {
@@ -39,13 +48,20 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             this.OperationContext = operationContext ?? new OperationContext();
             this.InitializeLocation();
 
+#if WINDOWS_RT || NETCORE
+            if (this.OperationContext.StartTime == DateTimeOffset.MinValue)
+            {
+                this.OperationContext.StartTime = DateTimeOffset.Now;
+            }
+#else
             if (this.OperationContext.StartTime == DateTime.MinValue)
             {
                 this.OperationContext.StartTime = DateTime.Now;
             }
+#endif
         }
 
-
+#if WINDOWS_DESKTOP 
         public ExecutionState(StorageCommandBase<T> cmd, IRetryPolicy policy, OperationContext operationContext, AsyncCallback callback, object asyncState)
             : base(callback, asyncState)
         {
@@ -59,16 +75,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
                 this.OperationContext.StartTime = DateTime.Now;
             }
         }
+#endif
 
         internal void Init()
         {
             this.Req = null;
             this.resp = null;
 
+#if !(WINDOWS_RT || NETCORE)
             this.ReqTimedOut = false;
             this.CancelDelegate = null;
+#endif
         }
 
+#if WINDOWS_RT || NETCORE
+        public void Dispose()
+        {
+            this.CheckDisposeSendStream();
+            this.CheckDisposeAction();
+        }
+#else
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -88,6 +114,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
         }
 
         internal Timer BackoffTimer { get; set; }
+#endif
 
         internal OperationContext OperationContext { get; private set; }
 
@@ -148,7 +175,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             set
             {
                 this.reqStream =
+#if WINDOWS_RT || NETCORE
+                    value;
+#else
                     value == null ? null : value.WrapWithByteCountingStream(this.Cmd.CurrentResult);
+#endif
             }
         }
 
@@ -228,6 +259,34 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             }
         }
 
+#if WINDOWS_RT || NETCORE
+        internal StorageRequestMessage Req { get; set; }
+
+        private HttpResponseMessage resp = null;
+
+        internal HttpResponseMessage Resp
+        {
+            get
+            {
+                return this.resp;
+            }
+
+            set
+            {
+                this.resp = value;
+
+                if (value != null)
+                {
+                    this.Cmd.CurrentResult.ServiceRequestID = HttpResponseMessageUtils.GetHeaderSingleValueOrDefault(this.resp.Headers, Constants.HeaderConstants.RequestIdHeader);
+                    this.Cmd.CurrentResult.ContentMd5 = this.resp.Content.Headers.ContentMD5 != null ? Convert.ToBase64String(this.resp.Content.Headers.ContentMD5) : null;
+                    this.Cmd.CurrentResult.Etag = this.resp.Headers.ETag != null ? this.resp.Headers.ETag.ToString() : null;
+                    this.Cmd.CurrentResult.RequestDate = this.resp.Headers.Date.HasValue ? this.resp.Headers.Date.Value.UtcDateTime.ToString("R", CultureInfo.InvariantCulture) : null;
+                    this.Cmd.CurrentResult.HttpStatusMessage = this.resp.ReasonPhrase;
+                    this.Cmd.CurrentResult.HttpStatusCode = (int)this.resp.StatusCode;
+                }
+            }
+        }
+#else
         internal HttpWebRequest Req { get; set; }
 
         private HttpWebResponse resp = null;
@@ -261,6 +320,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
                 }
             }
         }
+#endif
 
         private void InitializeLocation()
         {

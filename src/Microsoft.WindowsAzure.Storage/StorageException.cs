@@ -23,11 +23,19 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
     using System.Net;
     using System.Text;
 
+#if WINDOWS_DESKTOP 
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol;
     using System.Collections.Generic;
     using System.Globalization;
     using System.Runtime.Serialization;
+#elif WINDOWS_RT || NETCORE
+    using System.Runtime.InteropServices;
+#endif
+
+#if NETCORE
+    using System.Net.Http;
+#endif
 
     /// <summary>
     /// Represents an exception thrown by the Azure Storage service.
@@ -97,16 +105,17 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// </summary>
         /// <param name="info">The <see cref="System.Runtime.Serialization.SerializationInfo"/> object to populate with data.</param>
         /// <param name="context">The destination context for this serialization.</param>
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info != null)
-            {
-                info.AddValue("IsRetryable", this.IsRetryable);
-                info.AddValue("RequestInformation", this.RequestInformation, typeof(RequestResult));
-            }
+        // Sandboxable: Can't override SecurityCritical marked code
+        ////public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        ////{
+        ////    if (info != null)
+        ////    {
+        ////        info.AddValue("IsRetryable", this.IsRetryable);
+        ////        info.AddValue("RequestInformation", this.RequestInformation, typeof(RequestResult));
+        ////    }
 
-            base.GetObjectData(info, context);
-        }
+        ////    base.GetObjectData(info, context);
+        ////}
 #endif
 
         /// <summary>
@@ -152,7 +161,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
                     return storageException;
                 }
 
-#if !(ASPNET_K || PORTABLE)
+#if !(NETCORE)
                 WebException we = ex as WebException;
                 if (we != null)
                 {
@@ -175,6 +184,42 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
             return new StorageException(reqResult, ex.Message, ex);
         }
 
+#if NETCORE
+        /// <summary>
+        /// Translates the specified exception into a storage exception.
+        /// </summary>
+        /// <param name="ex">The exception to translate.</param>
+        /// <param name="reqResult">The request result.</param>
+        /// <param name="parseError">The delegate used to parse the error to get extended error information.</param>
+        /// <param name="response">HTTP response message</param>
+        /// <returns>The storage exception.</returns>
+        public static StorageException TranslateException(Exception ex, RequestResult reqResult, Func<Stream, StorageExtendedErrorInformation> parseError, HttpResponseMessage response)
+        {
+            StorageException storageException;
+
+            try
+            {
+                if ((storageException = CoreTranslate(ex, reqResult, ref parseError)) != null)
+                {
+                    return storageException;
+                }
+
+                if (response != null)
+                {
+                    StorageException.PopulateRequestResult(reqResult, response);
+                    reqResult.ExtendedErrorInformation = CommonUtility.RunWithoutSynchronizationContext(() => StorageExtendedErrorInformation.ReadFromStream(response.Content.ReadAsStreamAsync().Result));
+                }
+            }
+            catch (Exception)
+            {
+                // if there is an error thrown while parsing the service error, just wrap the service error in a StorageException.
+                // no op
+            }
+
+            // Just wrap in StorageException
+            return new StorageException(reqResult, ex.Message, ex);
+        }
+#endif
 
         /// <summary>
         /// Translates the specified exception into a storage exception.
@@ -195,7 +240,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
                     return storageException;
                 }
 
-#if !(ASPNET_K || PORTABLE)
+#if !(NETCORE)
                 WebException we = ex as WebException;
                 if (we != null)
                 {
@@ -217,6 +262,44 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
             // Just wrap in StorageException
             return new StorageException(reqResult, ex.Message, ex);
         }
+
+#if NETCORE
+        /// <summary>
+        /// Translates the specified exception into a storage exception.
+        /// </summary>
+        /// <param name="ex">The exception to translate.</param>
+        /// <param name="reqResult">The request result.</param>
+        /// <param name="parseError">The delegate used to parse the error to get extended error information.</param>
+        /// <param name="responseStream">The error stream that contains the error information.</param>
+        /// <param name="response">HTTP response message</param>
+        /// <returns>The storage exception.</returns>
+        internal static StorageException TranslateExceptionWithPreBufferedStream(Exception ex, RequestResult reqResult, Func<Stream, StorageExtendedErrorInformation> parseError, Stream responseStream, HttpResponseMessage response)
+        {
+            StorageException storageException;
+
+            try
+            {
+                if ((storageException = CoreTranslate(ex, reqResult, ref parseError)) != null)
+                {
+                    return storageException;
+                }
+
+                if (response != null)
+                {
+                    PopulateRequestResult(reqResult, response);
+                    reqResult.ExtendedErrorInformation = StorageExtendedErrorInformation.ReadFromStream(responseStream);
+                }
+            }
+            catch (Exception)
+            {
+                // if there is an error thrown while parsing the service error, just wrap the service error in a StorageException.
+                // no op
+            }
+
+            // Just wrap in StorageException
+            return new StorageException(reqResult, ex.Message, ex);
+        }
+#endif
 
         /// <summary>
         /// Tries to translate the specified exception into a storage exception.
@@ -254,7 +337,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
                 reqResult.ExtendedErrorInformation = null;
                 return new StorageException(reqResult, ex.Message, ex) { IsRetryable = false };
             }
-#if WINDOWS_RT || ASPNET_K || PORTABLE
+#if WINDOWS_RT || NETCORE
             else if (ex is OperationCanceledException)
             {
                 reqResult.HttpStatusMessage = null;
@@ -278,6 +361,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
             return null;
         }
 
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
         /// <summary>
         /// Translates the specified exception into a storage exception.
         /// </summary>
@@ -323,33 +407,46 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
             // Just wrap in StorageException
             return new StorageException(reqResult, ex.Message, ex);
         }
+#endif
 
         /// <summary>
         /// Populate the RequestResult.
         /// </summary>
         /// <param name="reqResult">The request result.</param>
         /// <param name="response">The web response.</param>
+#if NETCORE
+        private static void PopulateRequestResult(RequestResult reqResult, HttpResponseMessage response)
+        {
+            reqResult.HttpStatusMessage = response.StatusCode.ToString();
+            reqResult.HttpStatusCode = (int)response.StatusCode;
+        }
+#else
         private static void PopulateRequestResult(RequestResult reqResult, HttpWebResponse response)
         {
             reqResult.HttpStatusMessage = response.StatusDescription;
             reqResult.HttpStatusCode = (int)response.StatusCode;
             if (response.Headers != null)
             {
+#if WINDOWS_DESKTOP
                 reqResult.ServiceRequestID = HttpWebUtility.TryGetHeader(response, Constants.HeaderConstants.RequestIdHeader, null);
                 reqResult.ContentMd5 = HttpWebUtility.TryGetHeader(response, "Content-MD5", null);
                 string tempDate = HttpWebUtility.TryGetHeader(response, "Date", null);
                 reqResult.RequestDate = string.IsNullOrEmpty(tempDate) ? DateTime.Now.ToString("R", CultureInfo.InvariantCulture) : tempDate;
                 reqResult.Etag = response.Headers[HttpResponseHeader.ETag];
+#endif
             }
 
+#if !WINDOWS_RT
             if (response.ContentLength > 0) 
             {
                 reqResult.IngressBytes += response.ContentLength;
             }
+#endif
         }
+#endif
 
         /// <summary>
-        /// Represents an exception thrown by the Windows Azure storage client library. 
+        /// Represents an exception thrown by the Microsoft Azure storage client library. 
         /// </summary>
         /// <returns>A string that represents the exception.</returns>
         public override string ToString()

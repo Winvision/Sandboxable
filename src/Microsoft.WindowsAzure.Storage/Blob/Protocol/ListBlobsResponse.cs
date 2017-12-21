@@ -208,6 +208,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
             string copyProgress = null;
             string copySource = null;
             string copyStatusDescription = null;
+            string copyDestinationSnapshotTime = null;
+
+            string blobTierString = null;
+            bool? blobTierInferred = null;
+            string rehydrationStatusString = null;
+            DateTimeOffset? blobTierLastModifiedTime = null;
 
             this.reader.ReadStartElement();
             while (this.reader.IsStartElement())
@@ -331,6 +337,35 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
                                             copyStatusDescription = reader.ReadElementContentAsString();
                                             break;
 
+                                        case Constants.ServerEncryptionElement:
+                                            blob.Properties.IsServerEncrypted = BlobHttpResponseParsers.GetServerEncrypted(reader.ReadElementContentAsString());
+                                            break;
+
+                                        case Constants.IncrementalCopy:
+                                            blob.Properties.IsIncrementalCopy = BlobHttpResponseParsers.GetIncrementalCopyStatus(reader.ReadElementContentAsString());
+                                            break;
+
+                                        case Constants.CopyDestinationSnapshotElement:
+                                            copyDestinationSnapshotTime = reader.ReadElementContentAsString();
+                                            break;
+
+                                        case Constants.AccessTierElement:
+                                            blobTierString = reader.ReadElementContentAsString();
+                                            break;
+
+                                        case Constants.ArchiveStatusElement:
+                                            rehydrationStatusString = reader.ReadElementContentAsString();
+                                            break;
+
+                                        case Constants.AccessTierInferred:
+                                            blobTierInferred = reader.ReadElementContentAsBoolean();
+                                            break;
+
+                                        case Constants.AccessTierChangeTimeElement:
+                                            string t = reader.ReadElementContentAsString();
+                                            blobTierLastModifiedTime = DateTimeOffset.Parse(t, CultureInfo.InvariantCulture);
+                                            break;
+
                                         default:
                                             reader.Skip();
                                             break;
@@ -373,8 +408,22 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
                     copySource,
                     copyProgress,
                     copyCompletionTime,
-                    copyStatusDescription);
+                    copyStatusDescription,
+                    copyDestinationSnapshotTime);
             }
+
+            if (!string.IsNullOrEmpty(blobTierString))
+            {
+                StandardBlobTier? standardBlobTier;
+                PremiumPageBlobTier? premiumPageBlobTier;
+                BlobHttpResponseParsers.GetBlobTier(blob.Properties.BlobType, blobTierString, out standardBlobTier, out premiumPageBlobTier);
+                blob.Properties.StandardBlobTier = standardBlobTier;
+                blob.Properties.PremiumPageBlobTier = premiumPageBlobTier;
+            }
+
+            blob.Properties.RehydrationStatus = BlobHttpResponseParsers.GetRehydrationStatus(rehydrationStatusString);
+            blob.Properties.BlobTierLastModifiedTime = blobTierLastModifiedTime;
+            blob.Properties.BlobTierInferred = blobTierInferred;
 
             return new ListBlobEntry(name, blob);
         }

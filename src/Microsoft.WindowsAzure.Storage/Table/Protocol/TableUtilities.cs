@@ -17,6 +17,7 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
 {
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
     using System;
     using System.Collections.Generic;
     using System.Data.Services.Client;
@@ -314,4 +315,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Protocol
             }
         }
     }
+#endif
 }

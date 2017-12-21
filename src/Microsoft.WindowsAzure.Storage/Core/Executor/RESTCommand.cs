@@ -23,7 +23,13 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
     using System;
     using System.Diagnostics.CodeAnalysis;
     using System.IO;
+
+#if WINDOWS_RT || NETCORE
+    using System.Net.Http;
+    using System.Threading.Tasks;
+#else
     using System.Net;
+#endif
 
     [SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1401:FieldsMustBePrivate", Justification = "Reviewed.")]
     internal class RESTCommand<T> : StorageCommandBase<T>
@@ -68,7 +74,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             set
             {
                 this.responseStream =
+#if WINDOWS_RT || NETCORE
+                    value;
+#else
                     value == null ? null : value.WrapWithByteCountingStream(this.CurrentResult);
+#endif
             }
         }
 
@@ -86,6 +96,20 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
 
         public Stream StreamToDispose { get; set; }
         
+#if WINDOWS_RT || NETCORE
+        public Func<RESTCommand<T>, OperationContext, HttpContent> BuildContent;
+
+        public Func<RESTCommand<T>, Uri, UriQueryBuilder, HttpContent, int?, OperationContext, StorageRequestMessage> BuildRequest;
+
+        // Pre-Stream Retrival func (i.e. if 409 no stream is retrieved), in some cases this method will return directly
+        public Func<RESTCommand<T>, HttpResponseMessage, Exception, OperationContext, T> PreProcessResponse;
+
+        // Post-Stream Retrieval Func ( if retreiveStream is true after ProcessResponse, the stream is retrieved and then PostProcess is called
+        public Func<RESTCommand<T>, HttpResponseMessage, OperationContext, Task<T>> PostProcessResponse;
+
+        // Delegate that will be executed if there is anything to be disposed.
+        public Action<RESTCommand<T>> DisposeAction = null;
+#else
         // Stream to send to server
         private Stream sendStream = null;
 
@@ -123,5 +147,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
 
         // Delegate that will be executed if there is anything to be disposed.
         public Action<RESTCommand<T>> DisposeAction = null;
+#endif
     }
 }

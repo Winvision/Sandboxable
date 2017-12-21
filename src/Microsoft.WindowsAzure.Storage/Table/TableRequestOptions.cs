@@ -36,6 +36,14 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
         /// </summary>
         private TimeSpan? maximumExecutionTime;
 
+#if !(WINDOWS_RT || NETCORE)
+        /// <summary>
+        /// If this is set, encryption has been explicitly cleared.
+        /// Thus, do not copy the value when applying defaults.
+        /// </summary>
+        private bool encryptionCleared = false;
+#endif
+
         /// <summary>
         /// Defines the absolute default option values, should neither the user nor client specify anything.
         /// </summary>
@@ -49,9 +57,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             PropertyResolver = null,
             ProjectSystemProperties = true,
 
+#if !(WINDOWS_RT || NETCORE)
             EncryptionPolicy = null,
             RequireEncryption = null,
             EncryptionResolver = null
+#endif
         };
 
         /// <summary>
@@ -77,9 +87,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                 this.PayloadFormat = other.PayloadFormat;
                 this.PropertyResolver = other.PropertyResolver;
                 this.ProjectSystemProperties = other.ProjectSystemProperties;
+#if !(WINDOWS_RT || NETCORE)
                 this.EncryptionPolicy = other.EncryptionPolicy;
                 this.RequireEncryption = other.RequireEncryption;
                 this.EncryptionResolver = other.EncryptionResolver;
+#endif
             }
         }
 
@@ -127,30 +139,49 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                 ?? serviceClient.DefaultRequestOptions.ProjectSystemProperties 
                 ?? BaseDefaultRequestOptions.ProjectSystemProperties;
 
-            modifiedOptions.EncryptionPolicy = 
-                modifiedOptions.EncryptionPolicy 
-                ?? serviceClient.DefaultRequestOptions.EncryptionPolicy 
-                ?? BaseDefaultRequestOptions.EncryptionPolicy;
+#if !(WINDOWS_RT || NETCORE)
+            if (requestOptions != null && requestOptions.encryptionCleared)
+            {
+                modifiedOptions.encryptionCleared = true;
+            }
+            else
+            {
+                modifiedOptions.EncryptionPolicy =
+                    modifiedOptions.EncryptionPolicy
+                    ?? serviceClient.DefaultRequestOptions.EncryptionPolicy
+                    ?? BaseDefaultRequestOptions.EncryptionPolicy;
 
-            modifiedOptions.RequireEncryption = 
-                modifiedOptions.RequireEncryption 
-                ?? serviceClient.DefaultRequestOptions.RequireEncryption 
-                ?? BaseDefaultRequestOptions.RequireEncryption;
+                modifiedOptions.RequireEncryption =
+                    modifiedOptions.RequireEncryption
+                    ?? serviceClient.DefaultRequestOptions.RequireEncryption
+                    ?? BaseDefaultRequestOptions.RequireEncryption;
 
-            modifiedOptions.EncryptionResolver = 
-                modifiedOptions.EncryptionResolver 
-                ?? serviceClient.DefaultRequestOptions.EncryptionResolver 
-                ?? BaseDefaultRequestOptions.EncryptionResolver;
+                modifiedOptions.EncryptionResolver =
+                    modifiedOptions.EncryptionResolver
+                    ?? serviceClient.DefaultRequestOptions.EncryptionResolver
+                    ?? BaseDefaultRequestOptions.EncryptionResolver;
+            }
+#endif
 
             return modifiedOptions;
         }
 
+#if !(WINDOWS_RT || NETCORE)
+        internal void ClearEncryption()
+        {
+            this.RequireEncryption = false;
+            this.EncryptionPolicy = null;
+            this.EncryptionResolver = null;
+            this.encryptionCleared = true;
+        }
+#endif
+
         internal static TableRequestOptions ApplyDefaultsAndClearEncryption(TableRequestOptions requestOptions, CloudTableClient serviceClient)
         {
             TableRequestOptions modifiedOptions = TableRequestOptions.ApplyDefaults(requestOptions, serviceClient);
-            modifiedOptions.RequireEncryption = false;
-            modifiedOptions.EncryptionPolicy = null;
-            modifiedOptions.EncryptionResolver = null;
+#if !(WINDOWS_RT || NETCORE)
+            modifiedOptions.ClearEncryption();
+#endif
             return modifiedOptions;
         }
 
@@ -164,6 +195,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             this.ApplyToStorageCommandCommon(cmd);
         }
 
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
         [Obsolete("Support for accessing Windows Azure Tables via WCF Data Services is now obsolete. It's recommended that you use the Microsoft.WindowsAzure.Storage.Table namespace for working with tables.")]
         internal void ApplyToStorageCommand<T, INTERMEDIATE_TYPE>(TableCommand<T, INTERMEDIATE_TYPE> cmd)
         {
@@ -175,6 +207,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
 
             this.ApplyToStorageCommandCommon(cmd);
         }
+#endif
 
         private void ApplyToStorageCommandCommon<T>(StorageCommandBase<T> cmd)
         {
@@ -193,6 +226,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             }
         }
 
+#if !(WINDOWS_RT || NETCORE)
         internal void AssertNoEncryptionPolicyOrStrictMode()
         {
             if (this.EncryptionPolicy != null)
@@ -210,6 +244,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                 throw new InvalidOperationException(SR.EncryptionPolicyMissingInStrictMode);
             }
         }
+#endif
 
         /// <summary>
         ///  Gets or sets the absolute expiry time across all potential retries for the request. 
@@ -227,6 +262,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
         /// </summary>
         public bool? ProjectSystemProperties { get; set; }
 
+#if !(WINDOWS_RT || NETCORE)
         /// <summary>
         /// Gets or sets the encryption policy for the request.
         /// </summary>
@@ -238,6 +274,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
         /// </summary>
         /// <value>Use <c>true</c> to specify that data should be encrypted/decrypted for all transactions; otherwise, <c>false</c>.</value>
         public bool? RequireEncryption { get; set; }
+#endif
 
         /// <summary>
         /// Gets or sets the location mode of the request.
@@ -298,10 +335,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
         /// </summary>
         public Func<string, string, string, string, EdmType> PropertyResolver { get; set; }
 
+#if !(WINDOWS_RT || NETCORE)
         /// <summary>
         /// Gets or sets the delegate to get the value indicating whether or not a property should be encrypted, given the partition key, row key, 
         /// and property name. 
         /// </summary>
         public Func<string, string, string, bool> EncryptionResolver { get; set; }
+#endif
     }
 }

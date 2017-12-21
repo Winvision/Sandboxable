@@ -17,6 +17,7 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
 {
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table.DataServices;
     using System;
     using System.Diagnostics.CodeAnalysis;
@@ -31,4 +32,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
         public Func<INTERMEDIATE_TYPE, RequestResult, TableCommand<T, INTERMEDIATE_TYPE>, T> ParseResponse;
         public TableServiceContext Context = null;
     }
+#endif
 }

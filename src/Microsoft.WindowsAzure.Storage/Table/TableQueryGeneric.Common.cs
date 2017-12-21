@@ -26,7 +26,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
     using System.Text;
 
     /// <summary>
-    /// Represents a query against a Windows Azure table.
+    /// Represents a query against a Microsoft Azure table.
     /// </summary>
     public partial class TableQuery<TElement>
     {
@@ -125,9 +125,18 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             this.FilterString = filter;
             return this;
         }
-#endregion
 
-#region Impl
+        public TableQuery<TElement> Copy()
+        {
+            TableQuery<TElement> copy = new TableQuery<TElement>();
+            copy.TakeCount = this.TakeCount;
+            copy.FilterString = this.FilterString;
+            copy.SelectColumns = this.SelectColumns;
+            return copy;
+        }
+        #endregion
+
+        #region Impl
 
         internal UriQueryBuilder GenerateQueryBuilder(bool? projectSystemProperties)
         {
