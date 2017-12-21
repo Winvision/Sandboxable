@@ -1,15 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>$id$</id>
+    <id>Sandboxable.Microsoft.Azure.Common</id>
     <version>0.0.0.0</version>
     <authors>Winvision</authors>
-    <description>$description$</description>
+    <description>This library is adjusted to run in a Partial Trust environment. Provides infrastructure for common error handling, tracing, configuration, and HTTP/REST-based pipeline manipulation. The package also exposes the CloudContext type, which enables centralized discovery of available Microsoft Azure libraries.</description>
     <language>en-US</language>
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
+    <dependencies>
+      <dependency id="Sandboxable.Hyak.Common" version="1.1.2" />
+    </dependencies>
   </metadata>
   <files>
-    <file src="bin\$configuration$\$id$.pdb" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.Azure.Common.dll" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.Azure.Common.pdb" target="lib\net452\" />
   </files>
 </package>

@@ -41,10 +41,6 @@
       <HintPath>..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.42\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -77,6 +73,12 @@
     <None Include="Microsoft.Azure.Common.nuspec" />
     <None Include="packages.config" />
     <None Include="Settings.SourceAnalysis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Hyak.Common\Hyak.Common.csproj">
+      <Project>{74a1219f-a385-45aa-a743-5d064e95112e}</Project>
+      <Name>Hyak.Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
