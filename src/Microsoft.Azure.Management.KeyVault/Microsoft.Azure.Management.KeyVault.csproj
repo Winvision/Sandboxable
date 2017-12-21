@@ -40,14 +40,6 @@
       <HintPath>..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Sandboxable.Hyak.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Hyak.Common.1.0.42\lib\net452\Sandboxable.Hyak.Common.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Sandboxable.Microsoft.Azure.Common, Version=2.0.0.0, Culture=neutral, PublicKeyToken=dd461fa2f43d8736, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Sandboxable.Microsoft.Azure.Common.1.0.43\lib\net452\Sandboxable.Microsoft.Azure.Common.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -78,7 +70,19 @@
       <Link>development.snk</Link>
     </None>
     <None Include="Microsoft.Azure.Management.KeyVault.nuspec" />
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Hyak.Common\Hyak.Common.csproj">
+      <Project>{74a1219f-a385-45aa-a743-5d064e95112e}</Project>
+      <Name>Hyak.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Microsoft.Azure.Common\Microsoft.Azure.Common.csproj">
+      <Project>{6fc1b259-87d1-4bb7-9fff-6c0625d99e46}</Project>
+      <Name>Microsoft.Azure.Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

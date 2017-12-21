@@ -1,15 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>$id$</id>
+    <id>Sandboxable.Microsoft.Azure.Management.KeyVault</id>
     <version>0.0.0.0</version>
     <authors>Winvision</authors>
-    <description>$description$</description>
+    <description>This library is adjusted to run in a Partial Trust environment. Provides Microsoft Azure Key Vault management functions for managing key vaults.</description>
     <language>en-US</language>
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
+    <dependencies>
+      <dependency id="Sandboxable.Microsoft.Azure.Common" version="1.1.6" />
+    </dependencies>
   </metadata>
   <files>
-    <file src="bin\$configuration$\$id$.pdb" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.Azure.Management.KeyVault.dll" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.Azure.Management.KeyVault.pdb" target="lib\net452\" />
   </files>
 </package>
