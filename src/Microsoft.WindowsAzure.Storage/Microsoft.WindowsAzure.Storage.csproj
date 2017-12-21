@@ -213,8 +213,6 @@
     <Compile Include="Core\Util\HttpResponseMessageUtils.cs" />
     <Compile Include="Core\Util\HttpWebUtility.cs" />
     <Compile Include="Core\Util\MD5Wrapper.cs" />
-    <Compile Include="Core\Util\NativeMD5.cs" />
-    <Compile Include="Core\Util\NativeMethods.cs" />
     <Compile Include="Core\Util\NavigationHelper.cs" />
     <Compile Include="Core\Util\PlatformAgnosticReflectionExtensions.cs" />
     <Compile Include="Core\Util\StorageAsyncResult.cs" />
