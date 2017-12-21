@@ -9,7 +9,7 @@
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
     <dependencies>
-      <dependency id="Sandboxable.Microsoft.Azure.Common" version="1.1.0" />
+      <dependency id="Sandboxable.Microsoft.Azure.Common" version="1.1.6" />
     </dependencies>
   </metadata>
   <files>
