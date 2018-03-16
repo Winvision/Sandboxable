@@ -32,7 +32,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.File
     using System.Threading.Tasks;
 
     /// <summary>
-    /// Provides a client-side logical representation of the Windows Azure File service. This client is used to configure and execute requests against the File service.
+    /// Provides a client-side logical representation of the Microsoft Azure File service. This client is used to configure and execute requests against the File service.
     /// </summary>
     /// <remarks>The service client encapsulates the base URI for the File service. If the service client will be used for authenticated access,
     /// it also encapsulates the credentials for accessing the storage account.</remarks>
@@ -580,7 +580,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.File
             {
                 ListSharesResponse listSharesResponse = new ListSharesResponse(cmd.ResponseStream);
                 List<CloudFileShare> sharesList = new List<CloudFileShare>(
-                    listSharesResponse.Shares.Select(item => new CloudFileShare(item.Properties, item.Metadata, item.Name, this)));
+                    listSharesResponse.Shares.Select(item => new CloudFileShare(item.Properties, item.Metadata, item.Name, item.SnapshotTime, this)));
                 FileContinuationToken continuationToken = null;
                 if (listSharesResponse.NextMarker != null)
                 {

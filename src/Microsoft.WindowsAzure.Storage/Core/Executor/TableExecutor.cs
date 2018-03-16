@@ -17,6 +17,7 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
 {
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util;
     using Sandboxable.Microsoft.WindowsAzure.Storage.RetryPolicies;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
@@ -606,4 +607,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Executor
             }
         }
     }
+#endif
 }

@@ -905,8 +905,9 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table.Queryable
                 {
                     return false;
                 }
+#if WINDOWS_DESKTOP
                 return call.Method == typeof(object).GetMethod("ReferenceEquals");
-#if WINDOWS_RT
+#elif WINDOWS_RT
                 return call.Method == typeof(object).GetRuntimeMethod("ReferenceEquals", new Type[]{});
 #endif
             }

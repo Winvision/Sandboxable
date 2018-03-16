@@ -64,9 +64,25 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
 
             properties.ContentDisposition = response.Headers[Constants.HeaderConstants.ContentDispositionResponseHeader];
             properties.ContentEncoding = response.Headers[HttpResponseHeader.ContentEncoding];
-            properties.ContentMD5 = response.Headers[HttpResponseHeader.ContentMd5];
+
+            // For range gets, only look at 'x-ms-blob-content-md5' for overall MD5
+            if (response.Headers[HttpResponseHeader.ContentRange] != null)
+            {
+                properties.ContentMD5 = response.Headers[Constants.HeaderConstants.BlobContentMD5Header];
+            }
+            else
+            {
+                properties.ContentMD5 = response.Headers[HttpResponseHeader.ContentMd5];
+            }
+
             properties.ContentType = response.Headers[HttpResponseHeader.ContentType];
             properties.CacheControl = response.Headers[HttpResponseHeader.CacheControl];
+
+            string blobEncryption = response.Headers[Constants.HeaderConstants.ServerEncrypted];
+            properties.IsServerEncrypted = string.Equals(blobEncryption, Constants.HeaderConstants.TrueHeader, StringComparison.OrdinalIgnoreCase);
+
+            string incrementalCopy = response.Headers[Constants.HeaderConstants.IncrementalCopyHeader];
+            properties.IsIncrementalCopy = string.Equals(incrementalCopy, Constants.HeaderConstants.TrueHeader, StringComparison.OrdinalIgnoreCase);
 
             // Get blob type
             string blobType = response.Headers[Constants.HeaderConstants.BlobType];
@@ -115,6 +131,37 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
             if (!string.IsNullOrEmpty(comittedBlockCount))
             {
                 properties.AppendBlobCommittedBlockCount = int.Parse(comittedBlockCount, CultureInfo.InvariantCulture);
+            }
+
+            // Get the tier of the blob
+            string premiumPageBlobTierInferredString = response.Headers[Constants.HeaderConstants.AccessTierInferredHeader];
+            if (!string.IsNullOrEmpty(premiumPageBlobTierInferredString))
+            {
+                properties.BlobTierInferred = Convert.ToBoolean(premiumPageBlobTierInferredString);
+            }
+            
+            string blobTierString = response.Headers[Constants.HeaderConstants.AccessTierHeader];
+
+            StandardBlobTier? standardBlobTier;
+            PremiumPageBlobTier? premiumPageBlobTier;
+            BlobHttpResponseParsers.GetBlobTier(properties.BlobType, blobTierString, out standardBlobTier, out premiumPageBlobTier);
+            properties.StandardBlobTier = standardBlobTier;
+            properties.PremiumPageBlobTier = premiumPageBlobTier;
+            
+            if ((properties.PremiumPageBlobTier.HasValue || properties.StandardBlobTier.HasValue) && !properties.BlobTierInferred.HasValue)
+            {
+                properties.BlobTierInferred = false;
+            }
+
+            // Get the rehydration status
+            string rehydrationStatusString = response.Headers[Constants.HeaderConstants.ArchiveStatusHeader];
+            properties.RehydrationStatus = BlobHttpResponseParsers.GetRehydrationStatus(rehydrationStatusString);
+
+            // Get the time the tier of the blob was last modified
+            string accessTierChangeTimeString = response.Headers[Constants.HeaderConstants.AccessTierChangeTimeHeader];
+            if (!string.IsNullOrEmpty(accessTierChangeTimeString))
+            {
+                properties.BlobTierLastModifiedTime = DateTimeOffset.Parse(accessTierChangeTimeString, CultureInfo.InvariantCulture);
             }
 
             return properties;
@@ -225,7 +272,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol
                     response.Headers[Constants.HeaderConstants.CopySourceHeader],
                     response.Headers[Constants.HeaderConstants.CopyProgressHeader],
                     response.Headers[Constants.HeaderConstants.CopyCompletionTimeHeader],
-                    response.Headers[Constants.HeaderConstants.CopyDescriptionHeader]);
+                    response.Headers[Constants.HeaderConstants.CopyDescriptionHeader],
+                    response.Headers[Constants.HeaderConstants.CopyDestinationSnapshotHeader]);
             }
             else
             {

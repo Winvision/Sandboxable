@@ -24,7 +24,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
     using System.Threading.Tasks;
 
     /// <summary>
-    /// An interface required for Windows Azure blob types. The <see cref="CloudBlockBlob"/> and <see cref="CloudPageBlob"/> classes implement the <see cref="ICloudBlob"/> interface.
+    /// An interface required for Microsoft Azure blob types. The <see cref="CloudBlockBlob"/> and <see cref="CloudPageBlob"/> classes implement the <see cref="ICloudBlob"/> interface.
     /// </summary>
     public partial interface ICloudBlob : IListBlobItem
     {
@@ -159,7 +159,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
 
 #if SYNC
         /// <summary>
-        /// Uploads a stream to the Windows Azure Blob Service. 
+        /// Uploads a stream to the Microsoft Azure Blob Service. 
         /// </summary>
         /// <param name="source">The stream providing the blob content. Use a seek-able stream for optimal performance.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
@@ -168,7 +168,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         void UploadFromStream(Stream source, AccessCondition accessCondition = null, BlobRequestOptions options = null, OperationContext operationContext = null); 
 
         /// <summary>
-        /// Uploads a stream to the Windows Azure Blob Service. 
+        /// Uploads a stream to the Microsoft Azure Blob Service. 
         /// </summary>
         /// <param name="source">A <see cref="System.IO.Stream"/> object providing the blob content.</param>
         /// <param name="length">The number of bytes to write from the source stream at its current position.</param>
@@ -308,7 +308,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
 
 #if SYNC
         /// <summary>
-        /// Uploads a file to the Windows Azure Blob Service. 
+        /// Uploads a file to the Microsoft Azure Blob Service. 
         /// </summary>
         /// <param name="path">A string containing the file path providing the blob content.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
@@ -1183,7 +1183,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Deletes the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1201,7 +1201,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Begins an asynchronous operation to delete the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1233,7 +1233,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1243,7 +1243,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1256,7 +1256,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Deletes the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1275,7 +1275,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Begins an asynchronous request to delete the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1308,7 +1308,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1318,7 +1318,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>

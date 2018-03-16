@@ -22,7 +22,9 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
     using System.Globalization;
     using System.Linq;
 
+#if WINDOWS_DESKTOP 
     using System.Net;
+#endif
 
     /// <summary>
     /// Provides helper functions for http request/response processing. 
@@ -36,7 +38,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
         /// <returns></returns>
         public static IDictionary<string, string> ParseQueryString(string query)
         {
-            Dictionary<string, string> retVal = new Dictionary<string, string>();
+            Dictionary<string, string> retVal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrEmpty(query))
             {
                 return retVal;
@@ -97,7 +99,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             return dateTime.UtcDateTime.ToString("R", CultureInfo.InvariantCulture);
         }
 
-#if WINDOWS_RT || ASPNET_K || PORTABLE
+#if WINDOWS_RT || NETCORE
         /// <summary>
         /// Combine all the header values in the IEnumerable to a single comma separated string.
         /// </summary>
@@ -116,6 +118,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
         }
 #endif
 
+#if WINDOWS_DESKTOP 
         /// <summary>
         /// Try to get the value of the specified header name.
         /// </summary>
@@ -135,5 +138,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
                 return value;
             }
         }
+#endif
     }
 }

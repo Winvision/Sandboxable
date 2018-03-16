@@ -40,8 +40,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
         internal static QueueRequestOptions BaseDefaultRequestOptions = new QueueRequestOptions()
         {
             RetryPolicy = new NoRetry(),
+#if !(WINDOWS_RT || NETCORE)
             EncryptionPolicy = null,
             RequireEncryption = null,
+#endif
             LocationMode = RetryPolicies.LocationMode.PrimaryOnly,
             ServerTimeout = null,
             MaximumExecutionTime = null
@@ -64,8 +66,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
             if (other != null)
             {
                 this.RetryPolicy = other.RetryPolicy;
+#if !(WINDOWS_RT || NETCORE)
                 this.EncryptionPolicy = other.EncryptionPolicy;
                 this.RequireEncryption = other.RequireEncryption;
+#endif
                 this.ServerTimeout = other.ServerTimeout;
                 this.LocationMode = other.LocationMode;
                 this.MaximumExecutionTime = other.MaximumExecutionTime;
@@ -82,6 +86,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
                 ?? serviceClient.DefaultRequestOptions.RetryPolicy 
                 ?? BaseDefaultRequestOptions.RetryPolicy;
 
+#if !(WINDOWS_RT || NETCORE)
             modifiedOptions.EncryptionPolicy = 
                 modifiedOptions.EncryptionPolicy 
                 ?? serviceClient.DefaultRequestOptions.EncryptionPolicy 
@@ -91,6 +96,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
                 modifiedOptions.RequireEncryption 
                 ?? serviceClient.DefaultRequestOptions.RequireEncryption 
                 ?? BaseDefaultRequestOptions.RequireEncryption;
+#endif
 
             modifiedOptions.LocationMode = 
                 modifiedOptions.LocationMode 
@@ -137,6 +143,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
             }
         }
 
+#if !(WINDOWS_RT || NETCORE)
         internal void AssertPolicyIfRequired()
         {
             if (this.RequireEncryption.HasValue && this.RequireEncryption.Value && this.EncryptionPolicy == null)
@@ -144,6 +151,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
                 throw new InvalidOperationException(SR.EncryptionPolicyMissingInStrictMode);
             }
         }
+#endif
 
         /// <summary>
         ///  Gets or sets the absolute expiry time across all potential retries for the request. 
@@ -156,6 +164,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
         /// <value>An object of type <see cref="IRetryPolicy"/>.</value>
         public IRetryPolicy RetryPolicy { get; set; }
 
+#if !(WINDOWS_RT || NETCORE)
         /// <summary>
         /// Gets or sets the encryption policy for the request.
         /// </summary>
@@ -167,6 +176,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
         /// </summary>
         /// <value>Use <c>true</c> to specify that data should be encrypted/decrypted for all transactions; otherwise, <c>false</c>.</value>
         public bool? RequireEncryption { get; set; }
+#endif
 
         /// <summary>
         /// Gets or sets the location mode of the request.

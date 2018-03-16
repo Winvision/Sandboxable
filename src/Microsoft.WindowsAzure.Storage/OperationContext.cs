@@ -28,9 +28,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
     {
         static OperationContext()
         {
-#if !PORTABLE
             OperationContext.DefaultLogLevel = LogLevel.Verbose;
-#endif
         }
 
         /// <summary>
@@ -39,9 +37,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         public OperationContext()
         {
             this.ClientRequestID = Guid.NewGuid().ToString();
-#if !PORTABLE
             this.LogLevel = OperationContext.DefaultLogLevel;
-#endif
         }
 
         #region Headers
@@ -59,9 +55,17 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         [SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "ID", Justification = "Back compatibility.")]
         public string ClientRequestID { get; set; }
 
+        /// <summary>
+        /// Gets or sets a custom UserAgent value to be prepended to the existing library UserAgent.
+        /// </summary>
+        /// <value>A string containing the specified UserAgent value.</value>
+#if WINDOWS_DESKTOP
+        /// <remarks>This value will be overridden if the UserAgent value is modified via SendingRequestEvent (per instance or global).</remarks>
+#endif
+        public string CustomUserAgent { get; set; }
+
         #endregion
 
-#if !PORTABLE
         #region Logging
 
         /// <summary>
@@ -77,7 +81,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         public LogLevel LogLevel { get; set; } 
 
         #endregion
-#endif
         
         #region Events
 
@@ -183,6 +186,19 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         #endregion
 
         #region Times
+#if WINDOWS_RT || NETCORE
+        /// <summary>
+        /// Gets or sets the start time of the operation.
+        /// </summary>
+        /// <value>The start time of the operation.</value>
+        public System.DateTimeOffset StartTime { get; set; }
+
+        /// <summary>
+        /// Gets or sets the end time of the operation.
+        /// </summary>
+        /// <value>The end time of the operation.</value>
+        public System.DateTimeOffset EndTime { get; set; }
+#else
         /// <summary>
         /// Gets or sets the start time of the operation.
         /// </summary>
@@ -194,6 +210,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
         /// </summary>
         /// <value>A <see cref="DateTime"/> value indicating the end time of the operation.</value>
         public DateTime EndTime { get; set; }
+#endif
         #endregion
 
         #region Request Results
@@ -231,5 +248,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage
             }
         }
         #endregion
+
     }
 }

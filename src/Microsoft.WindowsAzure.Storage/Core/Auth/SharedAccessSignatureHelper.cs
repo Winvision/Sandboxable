@@ -380,6 +380,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Auth
                     case Constants.QueryConstants.Component:
                     case Constants.QueryConstants.Snapshot:
                     case Constants.QueryConstants.ApiVersion:
+                    case Constants.QueryConstants.ShareSnapshot:
                         removeList.Add(parameter.Key);
                         break;
 

@@ -19,7 +19,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
 {
     using System;
 
-#if WINDOWS_RT || ASPNET_K || PORTABLE
+#if WINDOWS_RT || NETCORE
     using System.Globalization;
     using System.IO;
     using System.Net;
@@ -30,6 +30,60 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
 
     internal class Exceptions
     {
+#if WINDOWS_RT || NETCORE
+        internal async static Task<StorageException> PopulateStorageExceptionFromHttpResponseMessage(HttpResponseMessage response, RequestResult currentResult, Func<Stream, HttpResponseMessage, string, StorageExtendedErrorInformation> parseError)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    currentResult.HttpStatusMessage = response.ReasonPhrase;
+                    currentResult.HttpStatusCode = (int)response.StatusCode;
+                    currentResult.ServiceRequestID = HttpResponseMessageUtils.GetHeaderSingleValueOrDefault(response.Headers, Constants.HeaderConstants.RequestIdHeader);
+                    
+                    string tempDate = HttpResponseMessageUtils.GetHeaderSingleValueOrDefault(response.Headers, Constants.HeaderConstants.Date);
+                    currentResult.RequestDate = string.IsNullOrEmpty(tempDate) ? DateTime.Now.ToString("R", CultureInfo.InvariantCulture) : tempDate;
+                    
+                    if (response.Headers.ETag != null)
+                    {
+                        currentResult.Etag = response.Headers.ETag.ToString();
+                    }
+
+                    if (response.Content != null && response.Content.Headers.ContentMD5 != null)
+                    {
+                        currentResult.ContentMd5 = Convert.ToBase64String(response.Content.Headers.ContentMD5);
+                    }
+                }
+                catch (Exception)
+                {
+                    // no op
+                }
+
+                try
+                {
+                    Stream errStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    if (parseError != null)
+                    {
+                        currentResult.ExtendedErrorInformation = parseError(errStream, response, response.Content.Headers.ContentType.ToString());
+                    }
+                    else
+                    {
+                        currentResult.ExtendedErrorInformation = await StorageExtendedErrorInformation.ReadFromStreamAsync(errStream.AsInputStream());
+                    }
+                }
+                catch (Exception)
+                {
+                    // no op
+                }
+
+                return new StorageException(currentResult, response.ReasonPhrase, null);
+            }
+            else
+            {
+                return null;
+            }
+        }
+#endif
 
         internal static StorageException GenerateTimeoutException(RequestResult res, Exception inner)
         {
@@ -45,6 +99,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             };
         }
 
+#if WINDOWS_DESKTOP 
         internal static StorageException GenerateCancellationException(RequestResult res, Exception inner)
         {
             if (res != null)
@@ -56,5 +111,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             OperationCanceledException cancelEx = new OperationCanceledException(SR.OperationCanceled, inner);
             return new StorageException(res, cancelEx.Message, cancelEx) { IsRetryable = false };
         }
+#endif
     }
 }

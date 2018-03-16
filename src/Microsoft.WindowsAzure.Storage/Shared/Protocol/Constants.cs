@@ -47,14 +47,34 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         public const int DefaultWriteBlockSizeBytes = (int)(4 * Constants.MB);
 
         /// <summary>
-        /// The maximum size of a blob before it must be separated into blocks.
+        /// Default read buffer size used by the SubStream class for Large Block Blob uploads.
         /// </summary>
-        public const long MaxSingleUploadBlobSize = 64 * MB;
+        public const int DefaultSubStreamBufferSize = (int)(4 * Constants.MB);
 
         /// <summary>
-        /// The maximum size of a single block.
+        /// Default range size when downloading a blob in parallel.
         /// </summary>
-        public const int MaxBlockSize = (int)(4 * Constants.MB);
+        public const long DefaultParallelDownloadRangeSizeBytes = 16 * Constants.MB;
+
+        /// <summary>
+        /// The maximum size of a blob before it must be separated into blocks.
+        /// </summary>
+        public const long MaxSingleUploadBlobSize = 256 * MB;
+
+        /// <summary>
+        /// The maximum size of a single block for Block Blobs.
+        /// </summary>
+        public const int MaxBlockSize = (int)(100 * Constants.MB);
+
+        /// <summary>
+        /// The maximum size of a single block for Append Blobs.
+        /// </summary>
+        public const int MaxAppendBlockSize = (int)(4 * Constants.MB);
+
+        /// <summary>
+        /// The maximum allowed time between write calls to the stream for parallel download streams.
+        /// </summary>
+        public const int MaxIdleTimeMs = 120000;
 
         /// <summary>
         /// The maximum size of a range get operation that returns content MD5.
@@ -70,6 +90,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         /// The maximum size of a blob with blocks.
         /// </summary>
         public const long MaxBlobSize = MaxBlockNumber * MaxBlockSize;
+
+        /// <summary>
+        /// The minimum size of a block for the large block upload strategy to be employed.
+        /// </summary>
+        public const int MinLargeBlockSize = (int)(4 * Constants.MB) + 1;
 
         /// <summary>
         /// Constant for the max value of MaximumExecutionTime.
@@ -118,7 +143,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         public const long MB = 1024 * KB;
 
         /// <summary>
-        /// A constant representing a megabyte (Non-SI version).
+        /// A constant representing a gigabyte (Non-SI version).
         /// </summary>
         public const long GB = 1024 * MB;
 
@@ -323,6 +348,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         public const string LastModifiedElement = "Last-Modified";
 
         /// <summary>
+        /// XML element for the server encryption status.
+        /// </summary>
+        public const string ServerEncryptionElement = "ServerEncrypted";
+
+        /// <summary>
         /// XML element for the Url.
         /// </summary>
         public const string UrlElement = "Url";
@@ -361,6 +391,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         /// XML element for copy status description.
         /// </summary>
         public const string CopyStatusDescriptionElement = "CopyStatusDescription";
+
+        /// <summary>
+        /// XML element for incremental copy.
+        /// </summary>
+        public const string IncrementalCopy = "IncrementalCopy";
+
+        /// <summary>
+        /// XML element for destination snapshot time.
+        /// </summary>
+        public const string CopyDestinationSnapshotElement = "CopyDestinationSnapshot";
 
         /// <summary>
         /// Constant signaling a page blob.
@@ -421,6 +461,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         /// Constant signaling the resource's lease is fixed (finite).
         /// </summary>
         public const string LeaseFixedValue = "fixed";
+        
+        /// <summary>
+        /// Constant for the minimum period of time that a lease can be broken in. 
+        /// </summary>
+        public const int MinimumBreakLeasePeriod = 0;
+
+        /// <summary>
+        /// Constant for the maximum period of time that a lease can be broken in.
+        /// </summary>
+        public const int MaximumBreakLeasePeriod = 60;
+
+        /// <summary>
+        /// Constant for the minimum duration of a lease.
+        /// </summary>
+        public const int MinimumLeaseDuration = 15;
+
+        /// <summary>
+        /// Constant for the maximum non-infinite duration of a lease.
+        /// </summary>
+        public const int MaximumLeaseDuration = 60;
 
         /// <summary>
         /// Constant for a pending copy.
@@ -443,6 +503,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         public const string CopyFailedValue = "failed";
 
         /// <summary>
+        /// Constant for rehydrating an archived blob to hot storage.
+        /// </summary>
+        public const string RehydratePendingToHot = "rehydrate-pending-to-hot";
+
+        /// <summary>
+        /// Constant for rehydrating an archived blob to cool storage.
+        /// </summary>
+        public const string RehydratePendingToCool = "rehydrate-pending-to-cool";
+
+        /// <summary>
         /// Constant for unavailable geo-replication status.
         /// </summary>
         public const string GeoUnavailableValue = "unavailable";
@@ -456,6 +526,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         /// Constant for bootstrap geo-replication status.
         /// </summary>
         public const string GeoBootstrapValue = "bootstrap";
+
+        /// <summary>
+        /// Constant for the blob tier.
+        /// </summary>
+        public const string AccessTierElement = "AccessTier";
+
+        /// <summary>
+        /// Constant for the access tier being inferred.
+        /// </summary>
+        public const string AccessTierInferred = "AccessTierInferred";
+
+        /// <summary>
+        /// Constant for the access tier change time.
+        /// </summary>
+        public const string AccessTierChangeTimeElement = "AccessTierChangeTime";
+
+        /// <summary>
+        /// Constant for the archive status.
+        /// </summary>
+        public const string ArchiveStatusElement = "ArchiveStatus";
 
         /// <summary>
         /// XML element for blob types.
@@ -476,6 +566,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         /// XML element for the lease status.
         /// </summary>
         public const string LeaseDurationElement = "LeaseDuration";
+
+        /// <summary>
+        /// XML element for the public access value.
+        /// </summary>
+        public const string PublicAccessElement = "PublicAccess";
 
         /// <summary>
         /// XML element for snapshots.
@@ -742,10 +837,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
                 UserAgentComment = "(Windows Runtime Phone)";
 #elif WINDOWS_RT
                 UserAgentComment = "(Windows Runtime)";
-#elif ASPNET_K
-                UserAgentComment = "(.NET Core 5.0)";
-#elif PORTABLE
-                UserAgentComment = "(Portable Class Library)";
+#elif NETCORE
+                UserAgentComment = "(.NET Core)";
 #else
                 UserAgentComment = string.Format(CultureInfo.InvariantCulture, "(.NET CLR {0}; {1} {2})", Environment.Version, Environment.OSVersion.Platform, Environment.OSVersion.Version);
 #endif
@@ -771,14 +864,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             /// <summary>
             /// Specifies the value to use for UserAgent header.
             /// </summary>
-#if ASPNET_K || PORTABLE
-            public const string UserAgentProductVersion = "7.0.1-preview";
-#else
-            public const string UserAgentProductVersion = "7.0.1";
-#endif 
+            public const string UserAgentProductVersion = "8.7.0";
 
             /// <summary>
-            /// Master Windows Azure Storage header prefix.
+            /// Master Microsoft Azure Storage header prefix.
             /// </summary>
             public const string PrefixForStorageHeader = "x-ms-";
 
@@ -821,6 +910,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             /// Header that specifies the ETag value for the resource.
             /// </summary>
             public const string EtagHeader = "ETag";
+
+            /// <summary>
+            /// Header that specifies if a resourse is fully encrypted server-side.
+            /// </summary>
+            public const string ServerEncrypted = PrefixForStorageHeader + "server-encrypted";
+
+            /// <summary>
+            /// Header that acknowledges the data used for write operation is encrypted server-side.
+            /// </summary>
+            public const string ServerRequestEncrypted = PrefixForStorageHeader + "request-server-encrypted";
 
             /// <summary>
             /// Header for data ranges.
@@ -921,6 +1020,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             /// Header to delete snapshots.
             /// </summary>
             public const string DeleteSnapshotHeader = PrefixForStorageHeader + "delete-snapshots";
+
+            /// <summary>
+            /// Header for the blob tier.
+            /// </summary>
+            public const string AccessTierHeader = PrefixForStorageHeader + "access-tier";
+
+            /// <summary>
+            /// Header for the archive status.
+            /// </summary>
+            public const string ArchiveStatusHeader = PrefixForStorageHeader + "archive-status";
+
+            /// <summary>
+            /// Header for the blob tier inferred.
+            /// </summary>
+            public const string AccessTierInferredHeader = PrefixForStorageHeader + "access-tier-inferred";
+
+            /// <summary>
+            /// Header for the last time the tier was modified.
+            /// </summary>
+            public const string AccessTierChangeTimeHeader = PrefixForStorageHeader + "access-tier-change-time";
 
             /// <summary>
             /// Header that specifies blob caching control.
@@ -1056,7 +1175,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             /// Current storage version header value.
             /// Every time this version changes, assembly version needs to be updated as well.
             /// </summary>
-            public const string TargetStorageVersion = "2015-07-08";
+            public const string TargetStorageVersion = "2017-04-17";
 
             /// <summary>
             /// Specifies the file type.
@@ -1170,9 +1289,24 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             public const string CopyActionHeader = PrefixForStorageHeader + "copy-action";
 
             /// <summary>
+            /// Header that specifies the copy type.
+            /// </summary>
+            public const string CopyTypeHeader = PrefixForStorageHeader + "copy-type";
+
+            /// <summary>
             /// The value of the copy action header that signifies an abort operation.
             /// </summary>
             public const string CopyActionAbort = "abort";
+
+            /// <summary>
+            /// Header that specifies an incremental copy.
+            /// </summary>
+            public const string IncrementalCopyHeader = PrefixForStorageHeader + "incremental-copy";
+
+            /// <summary>
+            /// Header that specifies the snapshot time of the last successful incremental copy snapshot.
+            /// </summary>
+            public const string CopyDestinationSnapshotHeader = PrefixForStorageHeader + "copy-destination-snapshot";
 
             /// <summary>
             /// Header that specifies the share size, in gigabytes.
@@ -1205,6 +1339,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             /// Query component for snapshot time.
             /// </summary>
             public const string Snapshot = "snapshot";
+
+            /// <summary>
+            /// Query component for share snapshot time.
+            /// </summary>
+            public const string ShareSnapshot = "sharesnapshot";
 
             /// <summary>
             /// Query component for the signed SAS start time.
@@ -1584,6 +1723,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
             /// Additional property name to store the encryption metadata.
             /// </summary>
             public const string TableEncryptionPropertyDetails = "_ClientEncryptionMetadata2";
+
+            /// <summary>
+            /// Key for the encryption agent
+            /// </summary>
+            public const string AgentMetadataKey = "EncryptionLibrary";
+
+            /// <summary>
+            /// Value for the encryption agent
+            /// </summary>
+            public const string AgentMetadataValue = ".NET " + Constants.HeaderConstants.UserAgentProductVersion;
         }
     }
 }

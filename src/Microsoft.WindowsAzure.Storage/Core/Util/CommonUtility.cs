@@ -25,10 +25,13 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
+    using System.Threading;
     using System.Xml;
 
+#if WINDOWS_DESKTOP 
     using System.Net;
     using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
+#endif
 
     internal static class CommonUtility
     {
@@ -346,6 +349,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
             }
         }
 
+#if WINDOWS_DESKTOP 
         /// <summary>
         /// Applies the request optimizations such as disabling buffering and 100 continue.
         /// </summary>
@@ -364,8 +368,43 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core.Util
                 request.ContentLength = length;
             }
 
+#if !(WINDOWS_PHONE && WINDOWS_DESKTOP)
             // Disable the Expect 100-Continue
             request.ServicePoint.Expect100Continue = false;
+#endif
+        }
+#endif
+
+        // TODO: When we move to .NET 4.5, we may be able to get rid of this method, or at least reduce our reliance upon it.
+        // The ideal solution is to use async either everywhere or nowhere throughout a call to the Storage library, but this may
+        // not be possible (KeyVault only exposes async APIs, and doesn't use ConfigureAwait(false), for example).
+        // Blog post discussing this is here: http://blogs.msdn.com/b/pfxteam/archive/2012/04/13/10293638.aspx
+        internal static void RunWithoutSynchronizationContext(Action actionToRun)
+        {
+            SynchronizationContext oldContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(null);
+                actionToRun();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(oldContext);
+            }
+        }
+
+        internal static T RunWithoutSynchronizationContext<T>(Func<T> actionToRun)
+        {
+            SynchronizationContext oldContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(null);
+                return actionToRun();
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(oldContext);
+            }
         }
     }
 }

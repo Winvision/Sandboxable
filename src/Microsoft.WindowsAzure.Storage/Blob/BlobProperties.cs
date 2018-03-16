@@ -54,6 +54,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             this.LastModified = other.LastModified;
             this.PageBlobSequenceNumber = other.PageBlobSequenceNumber;
             this.AppendBlobCommittedBlockCount = other.AppendBlobCommittedBlockCount;
+            this.IsServerEncrypted = other.IsServerEncrypted;
+            this.IsIncrementalCopy = other.IsIncrementalCopy;
+            this.PremiumPageBlobTier = other.PremiumPageBlobTier;
+            this.StandardBlobTier = other.StandardBlobTier;
+            this.RehydrationStatus = other.RehydrationStatus;
+            this.BlobTierLastModifiedTime = other.BlobTierLastModifiedTime;
         }
 
         /// <summary>
@@ -157,5 +163,49 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <value>An integer containing the number of committed blocks.</value>
         public int? AppendBlobCommittedBlockCount { get; internal set; }
+
+        /// <summary>
+        /// Gets the blob's server-side encryption state.
+        /// </summary>
+        /// <value>A bool representing the blob's server-side encryption state.</value>
+        public bool IsServerEncrypted { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating whether or not this blob is an incremental copy.
+        /// </summary>
+        /// <value>A bool representing if the blob is an incremental copy.</value>
+        public bool IsIncrementalCopy { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating the tier of the block blob.
+        /// </summary>
+        /// <value>A <see cref="StandardBlobTier"/> object that indicates the block blob tier.</value>
+        public StandardBlobTier? StandardBlobTier { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating that the blob is being rehdrated and the tier of the blob once
+        /// the rehydration from archive has completed.
+        /// </summary>
+        /// <value>A <see cref="RehydrationStatus"/> representing the rehydration status of the blob.</value>
+        /// <remarks>Only applicable for block blobs in this version of the library.</remarks>
+        public RehydrationStatus? RehydrationStatus { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating the tier of the premium page blob.
+        /// </summary>
+        /// <value>A <see cref="PremiumPageBlobTier"/> object that indicates the page blob tier.</value>
+        public PremiumPageBlobTier? PremiumPageBlobTier { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating if the tier of the blob has been inferred.
+        /// </summary>
+        /// <value>A bool representing if the blob tier has been inferred.</value>
+        public bool? BlobTierInferred { get; internal set; }
+
+        /// <summary>
+        /// Gets the time for when the tier of the blob was last-modified, expressed as a UTC value.
+        /// </summary>
+        /// <value>A <see cref="DateTimeOffset"/> containing the time for when the tier of the blob was last-modified, in UTC format.</value>
+        public DateTimeOffset? BlobTierLastModifiedTime { get; internal set; }
     }
 }

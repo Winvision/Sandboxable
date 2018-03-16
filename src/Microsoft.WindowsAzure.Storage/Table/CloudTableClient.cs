@@ -32,10 +32,12 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
     using System.Threading;
     using System.Threading.Tasks;
 
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
     using Sandboxable.Microsoft.WindowsAzure.Storage.Table.DataServices;
+#endif
 
     /// <summary>
-    /// Provides a client-side logical representation of the Windows Azure Table Service. This client is used to configure and execute requests against the Table Service.
+    /// Provides a client-side logical representation of the Microsoft Azure Table Service. This client is used to configure and execute requests against the Table Service.
     /// </summary>
     /// <remarks>The service client encapsulates the endpoint or endpoints for the Table service. If the service client will be used for authenticated access, it also encapsulates the credentials for accessing the storage account.</remarks>    
     public partial class CloudTableClient
@@ -675,7 +677,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             retCmd.CommandLocationMode = CommandLocationMode.PrimaryOrSecondary;
             retCmd.BuildRequestDelegate = TableHttpWebRequestFactory.GetServiceProperties;
             retCmd.SignRequest = this.AuthenticationHandler.SignRequest;
-            retCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
+            retCmd.ParseError = ODataErrorHelper.ReadFromStreamUsingODataLib;
             retCmd.RetrieveResponseStream = true;
             retCmd.PreProcessResponse =
                 (cmd, resp, ex, ctx) => HttpResponseParsers.ProcessExpectedStatusCodeNoException(HttpStatusCode.OK, resp, null /* retVal */, cmd, ex);
@@ -706,7 +708,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             retCmd.BuildRequestDelegate = TableHttpWebRequestFactory.SetServiceProperties;
             retCmd.RecoveryAction = RecoveryActions.RewindStream;
             retCmd.SignRequest = this.AuthenticationHandler.SignRequest;
-            retCmd.ParseError = StorageExtendedErrorInformation.ReadFromStreamUsingODataLib;
+            retCmd.ParseError = ODataErrorHelper.ReadFromStreamUsingODataLib;
             retCmd.PreProcessResponse =
                 (cmd, resp, ex, ctx) => HttpResponseParsers.ProcessExpectedStatusCodeNoException(HttpStatusCode.Accepted, resp, NullType.Value, cmd, ex);
 
@@ -716,6 +718,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
 
         private RESTCommand<ServiceStats> GetServiceStatsImpl(TableRequestOptions requestOptions)
         {
+            if (RetryPolicies.LocationMode.PrimaryOnly == requestOptions.LocationMode)
+            {
+                throw new InvalidOperationException(SR.GetServiceStatsInvalidOperation);
+            }  
+
             RESTCommand<ServiceStats> retCmd = new RESTCommand<ServiceStats>(this.Credentials, this.StorageUri);
             requestOptions.ApplyToStorageCommand(retCmd);
             retCmd.CommandLocationMode = CommandLocationMode.PrimaryOrSecondary;

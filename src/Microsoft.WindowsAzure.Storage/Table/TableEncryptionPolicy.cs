@@ -14,8 +14,8 @@
 // </copyright>
 // -----------------------------------------------------------------------------------------
 
-using Microsoft.Azure.KeyVault.Core;
-    
+using Microsoft.Azure.KeyVault.Core; // Sandboxable: Must be outside namespace
+
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
 {
     using Sandboxable.Microsoft.WindowsAzure.Storage.Core;
@@ -28,6 +28,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
     using System.Security.Cryptography;
     using System.Text;
     using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// Represents an encryption policy for performing envelope encryption/decryption of entities in Azure tables.
@@ -77,6 +78,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             EncryptionData encryptionData = new EncryptionData();
             encryptionData.EncryptionAgent = new EncryptionAgent(Constants.EncryptionConstants.EncryptionProtocolV1, EncryptionAlgorithm.AES_CBC_256);
             encryptionData.KeyWrappingMetadata = new Dictionary<string, string>();
+            encryptionData.KeyWrappingMetadata[Constants.EncryptionConstants.AgentMetadataKey] = Constants.EncryptionConstants.AgentMetadataValue;
 
             Dictionary<string, EntityProperty> encryptedProperties = new Dictionary<string, EntityProperty>();
             HashSet<string> encryptionPropertyDetailsSet = new HashSet<string>();
@@ -94,7 +96,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                     encryptionData.ContentEncryptionIV = myAes.IV;
 
                     // Wrap always happens locally, irrespective of local or cloud key. So it is ok to call it synchronously.
-                    Tuple<byte[], string> wrappedKey = this.Key.WrapKeyAsync(myAes.Key, null /* algorithm */, CancellationToken.None).Result;
+                    Tuple<byte[], string> wrappedKey = CommonUtility.RunWithoutSynchronizationContext(() => this.Key.WrapKeyAsync(myAes.Key, null /* algorithm */, CancellationToken.None).Result);
                     encryptionData.WrappedContentKey = new WrappedKey(this.Key.Kid, wrappedKey.Item1, wrappedKey.Item2);
 
                     foreach (KeyValuePair<string, EntityProperty> kvp in properties)
@@ -169,7 +171,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             return encryptedProperties;
         }
 
-        internal byte[] DecryptMetadataAndReturnCEK(string partitionKey, string rowKey, EntityProperty encryptionKeyProperty, EntityProperty propertyDetailsProperty, out EncryptionData encryptionData)
+        internal byte[] DecryptMetadataAndReturnCEK(string partitionKey, string rowKey, EntityProperty encryptionKeyProperty, EntityProperty propertyDetailsProperty, out EncryptionData encryptionData, out bool isJavaV1)
         {
             // Throw if neither the key nor the resolver are set.
             if (this.Key == null && this.KeyResolver == null)
@@ -180,6 +182,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             try
             {
                 encryptionData = JsonConvert.DeserializeObject<EncryptionData>(encryptionKeyProperty.StringValue);
+                EncryptionData encryptionDataCopy = encryptionData; // This is necessary because you cannot use "out" variables in a lambda.
 
                 CommonUtility.AssertNotNull("ContentEncryptionIV", encryptionData.ContentEncryptionIV);
                 CommonUtility.AssertNotNull("EncryptedKey", encryptionData.WrappedContentKey.EncryptedKey);
@@ -191,6 +194,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                     throw new StorageException(SR.EncryptionProtocolVersionInvalid, null) { IsRetryable = false };
                 }
 
+                isJavaV1 = (encryptionData.EncryptionAgent.Protocol == Constants.EncryptionConstants.EncryptionProtocolV1) 
+                            && ((encryptionData.KeyWrappingMetadata == null)
+                                || (encryptionData.KeyWrappingMetadata.ContainsKey(Constants.EncryptionConstants.AgentMetadataKey) 
+                                 && encryptionData.KeyWrappingMetadata[Constants.EncryptionConstants.AgentMetadataKey].Contains("Java")));
+
                 byte[] contentEncryptionKey = null;
 
                 // 1. Invoke the key resolver if specified to get the key. If the resolver is specified but does not have a
@@ -200,16 +208,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                 // locally. No service call is made.
                 if (this.KeyResolver != null)
                 {
-                    IKey keyEncryptionKey = this.KeyResolver.ResolveKeyAsync(encryptionData.WrappedContentKey.KeyId, CancellationToken.None).Result;
+                    IKey keyEncryptionKey = CommonUtility.RunWithoutSynchronizationContext(() => this.KeyResolver.ResolveKeyAsync(encryptionDataCopy.WrappedContentKey.KeyId, CancellationToken.None).Result);
 
                     CommonUtility.AssertNotNull("keyEncryptionKey", keyEncryptionKey);
-                    contentEncryptionKey = keyEncryptionKey.UnwrapKeyAsync(encryptionData.WrappedContentKey.EncryptedKey, encryptionData.WrappedContentKey.Algorithm, CancellationToken.None).Result;
+                    contentEncryptionKey = CommonUtility.RunWithoutSynchronizationContext(() => keyEncryptionKey.UnwrapKeyAsync(encryptionDataCopy.WrappedContentKey.EncryptedKey, encryptionDataCopy.WrappedContentKey.Algorithm, CancellationToken.None).Result);
                 }
                 else
                 {
                     if (this.Key.Kid == encryptionData.WrappedContentKey.KeyId)
                     {
-                        contentEncryptionKey = this.Key.UnwrapKeyAsync(encryptionData.WrappedContentKey.EncryptedKey, encryptionData.WrappedContentKey.Algorithm, CancellationToken.None).Result;
+                        contentEncryptionKey = CommonUtility.RunWithoutSynchronizationContext(() => this.Key.UnwrapKeyAsync(encryptionDataCopy.WrappedContentKey.EncryptedKey, encryptionDataCopy.WrappedContentKey.Algorithm, CancellationToken.None).Result);
                     }
                     else
                     {
@@ -228,7 +236,10 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                     using (SHA256Managed sha256 = new SHA256Managed())
 #endif
                     {
-                        byte[] metadataIV = sha256.ComputeHash(CommonUtility.BinaryAppend(encryptionData.ContentEncryptionIV, Encoding.UTF8.GetBytes(string.Join(partitionKey, rowKey, Constants.EncryptionConstants.TableEncryptionPropertyDetails))));
+                        // Here we are correcting for a bug in Java's v1 encryption.
+                        // Java v1 constructed the IV as PK + RK + column name.  Other libraries use RK + PK + column name.
+                        string IVString = isJavaV1 ? string.Concat(partitionKey, rowKey, Constants.EncryptionConstants.TableEncryptionPropertyDetails) : string.Concat(rowKey, partitionKey, Constants.EncryptionConstants.TableEncryptionPropertyDetails);
+                        byte[] metadataIV = sha256.ComputeHash(CommonUtility.BinaryAppend(encryptionData.ContentEncryptionIV, Encoding.UTF8.GetBytes(IVString)));
                         Array.Resize<byte>(ref metadataIV, 16);
                         myAes.IV = metadataIV;
                         myAes.Key = contentEncryptionKey;
@@ -260,7 +271,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
         /// <summary>
         /// Return a decrypted entity. This method is used for decrypting entity properties.
         /// </summary>
-        internal Dictionary<string, EntityProperty> DecryptEntity(IDictionary<string, EntityProperty> properties, HashSet<string> encryptedPropertyDetailsSet, string partitionKey, string rowKey, byte[] contentEncryptionKey, EncryptionData encryptionData)
+        internal Dictionary<string, EntityProperty> DecryptEntity(IDictionary<string, EntityProperty> properties, HashSet<string> encryptedPropertyDetailsSet, string partitionKey, string rowKey, byte[] contentEncryptionKey, EncryptionData encryptionData, bool isJavav1)
         {
             try
             {
@@ -289,7 +300,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
                                     }
                                     else if (encryptedPropertyDetailsSet.Contains(kvp.Key))
                                     {
-                                        byte[] columnIV = sha256.ComputeHash(CommonUtility.BinaryAppend(encryptionData.ContentEncryptionIV, Encoding.UTF8.GetBytes(string.Join(partitionKey, rowKey, kvp.Key))));
+                                        byte[] columnIV = sha256.ComputeHash(CommonUtility.BinaryAppend(encryptionData.ContentEncryptionIV, Encoding.UTF8.GetBytes(isJavav1 ? string.Concat(partitionKey, rowKey, kvp.Key) : string.Concat(rowKey, partitionKey, kvp.Key))));
                                         Array.Resize<byte>(ref columnIV, 16);
                                         myAes.IV = columnIV;
 
@@ -327,6 +338,61 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Table
             {
                 throw new StorageException(SR.DecryptionLogicError, ex) { IsRetryable = false };
             }
+        }
+
+        private static void ValidateKeyRotationArguments(KeyRotationEntity rotationEntity, TableRequestOptions options, bool encryptionMetadataAvailable)
+        {
+            if (options.EncryptionPolicy == null)
+            {
+                throw new ArgumentException(SR.KeyRotationNoEncryptionPolicy, "options.EncryptionPolicy");
+            }
+
+            if (options.EncryptionPolicy.Key == null)
+            {
+                throw new ArgumentException(SR.KeyRotationNoEncryptionKey, "options.EncryptionPolicy.Key");
+            }
+
+            if (options.EncryptionPolicy.KeyResolver == null)
+            {
+                throw new ArgumentException(SR.KeyRotationNoEncryptionKeyResolver, "options.EncryptionPolicy.KeyResolver");
+            }
+
+            if (rotationEntity.ETag == null)
+            {
+                throw new InvalidOperationException(SR.KeyRotationNoEtag);
+            }
+        }
+
+        internal static async Task<string> RotateEncryptionHelper(KeyRotationEntity rotationEntity, TableRequestOptions modifiedOptions, CancellationToken cancellationToken)
+        {
+            // Validate arguments:
+            String encryptionDataString = rotationEntity.encryptionMetadataJson;
+            TableEncryptionPolicy.ValidateKeyRotationArguments(rotationEntity, modifiedOptions, !String.IsNullOrWhiteSpace(encryptionDataString));
+
+            // Deserialize the old encryption data and validate:
+            EncryptionData tableEncryptionData = Newtonsoft.Json.JsonConvert.DeserializeObject<EncryptionData>(encryptionDataString);
+            if (tableEncryptionData.WrappedContentKey.EncryptedKey == null)
+            {
+                throw new InvalidOperationException(SR.KeyRotationNoKeyID);
+            }
+
+            // Use the key resolver to resolve the old KEK.
+            IKey oldKey = await modifiedOptions.EncryptionPolicy.KeyResolver.ResolveKeyAsync(tableEncryptionData.WrappedContentKey.KeyId, cancellationToken).ConfigureAwait(false);
+
+            if (oldKey == null)
+            {
+                throw new ArgumentException(SR.KeyResolverCannotResolveExistingKey);
+            }
+
+            // Use the old KEK to unwrap the CEK.
+            byte[] unwrappedOldKey = await oldKey.UnwrapKeyAsync(tableEncryptionData.WrappedContentKey.EncryptedKey, tableEncryptionData.WrappedContentKey.Algorithm, cancellationToken).ConfigureAwait(false);
+
+            // Use the new KEK to re-wrap the CEK.
+            Tuple<byte[], string> wrappedNewKeyTuple = await modifiedOptions.EncryptionPolicy.Key.WrapKeyAsync(unwrappedOldKey, null /* algorithm */, cancellationToken).ConfigureAwait(false);
+
+            TaskCompletionSource<string> tcs = new TaskCompletionSource<string>();
+            tableEncryptionData.WrappedContentKey = new WrappedKey(modifiedOptions.EncryptionPolicy.Key.Kid, wrappedNewKeyTuple.Item1, wrappedNewKeyTuple.Item2);
+            return Newtonsoft.Json.JsonConvert.SerializeObject(tableEncryptionData);
         }
     }
 }

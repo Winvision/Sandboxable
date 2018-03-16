@@ -29,7 +29,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
     using System.Globalization;
 
     /// <summary>
-    /// This class represents a queue in the Windows Azure Queue service.
+    /// Represents a queue in the Microsoft Azure Queue service.
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix", Justification = "Reviewed.")]
     public partial class CloudQueue
@@ -201,6 +201,20 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
        }
 
         /// <summary>
+        /// Copies protocol message to message.
+        /// </summary>
+        /// <param name="message">The queue message.</param>
+        /// <param name="protocolMessage">The protocol message.</param>
+        private static void CopyMessage(CloudQueueMessage message, QueueMessage protocolMessage)
+        {
+            message.InsertionTime = protocolMessage.InsertionTime;
+            message.ExpirationTime = protocolMessage.ExpirationTime;
+            message.NextVisibleTime = protocolMessage.NextVisibleTime.Value;
+            message.PopReceipt = protocolMessage.PopReceipt;
+            message.Id = protocolMessage.Id;
+        }
+
+        /// <summary>
         /// Selects the get message response.
         /// </summary>
         /// <param name="protocolMessage">The protocol message.</param>
@@ -229,7 +243,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
         {
             CloudQueueMessage message = null;
             byte[] dest = null;
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
+#if !(WINDOWS_RT || NETCORE)
             if (options != null && options.EncryptionPolicy != null)
             {
                 // If EncryptionPolicy is set, decrypt the message and set it.
@@ -251,7 +265,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
             }
             else
             {
-#if !(WINDOWS_RT || ASPNET_K || PORTABLE)
+#if !(WINDOWS_RT || NETCORE)
                 if (dest != null)
                 {
                     message = new CloudQueueMessage(dest);
@@ -272,7 +286,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
             return message;
         }
 
-#if !PORTABLE
         /// <summary>
         /// Returns a shared access signature for the queue.
         /// </summary>
@@ -338,6 +351,5 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Queue
 
             return builder.ToString();
         }
-#endif
     }
 }

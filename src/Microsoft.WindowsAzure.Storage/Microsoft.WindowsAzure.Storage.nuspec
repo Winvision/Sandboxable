@@ -1,20 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>$id$</id>
+    <id>Sandboxable.Microsoft.WindowsAzure.Storage</id>
     <version>0.0.0.0</version>
     <authors>Winvision</authors>
-    <description>$description$</description>
+    <description>This library is adjusted to run in a Partial Trust environment. Azure Storage SDK 8.7.0 for Windows</description>
     <language>en-US</language>
     <projectUrl>https://github.com/Winvision/Sandboxable</projectUrl>
     <licenseUrl>https://github.com/Winvision/Sandboxable/blob/master/LICENSE</licenseUrl>
     <dependencies>
-      <dependency id="Microsoft.Data.Services.Client" version="5.8.1" />
+      <dependency id="Microsoft.Data.Services.Client" version="5.8.2" />
       <dependency id="Microsoft.Azure.KeyVault.Core" version="1.0.0" />
-      <dependency id="Newtonsoft.Json" version="9.0.1" />
+      <dependency id="Newtonsoft.Json" version="8.0.3" />
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\$configuration$\$id$.pdb" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.WindowsAzure.Storage.dll" target="lib\net452\" />
+    <file src="bin\release\Sandboxable.Microsoft.WindowsAzure.Storage.pdb" target="lib\net452\" />
   </files>
 </package>

@@ -23,6 +23,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
 
     internal static class Response
     {
+#if WINDOWS_DESKTOP
         /// <summary>
         /// Gets the request id.
         /// </summary>
@@ -32,6 +33,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
         {
             return response.Headers[Constants.HeaderConstants.RequestIdHeader];
         }
+#endif
 
         /// <summary>
         /// Reads a collection of shared access policies from the specified <see cref="AccessPolicyResponseBase&lt;T&gt;"/> object.
@@ -68,9 +70,16 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol
                     return metadata;
                 }
 
-                if (reader.NodeType == XmlNodeType.Element && !reader.IsEmptyElement)
+                if (reader.NodeType == XmlNodeType.Element)
                 {
                     needToRead = false;
+
+                    if (reader.IsEmptyElement)
+                    {
+                        reader.Read();
+                        continue;
+                    }
+
                     string elementName = reader.Name;
                     string elementValue = reader.ReadElementContentAsString();
                     if (elementName != Constants.InvalidMetadataName)

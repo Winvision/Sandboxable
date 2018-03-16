@@ -17,51 +17,113 @@
 
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Core
 {
+    using Sandboxable.Microsoft.WindowsAzure.Storage.Shared.Protocol;
+    using System;
+    using System.Diagnostics;
+
     internal static partial class Logger
     {
-#if !PORTABLE
-        private static StorageEventSource eventSource = new StorageEventSource();
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
+        private static TraceSource traceSource = new TraceSource(Constants.LogSourceName);
+        private static volatile bool isClosed = false;
 #endif
+
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
+        static Logger()
+        {
+            AppDomain.CurrentDomain.DomainUnload += new EventHandler(Logger.AppDomainUnloadEvent);
+            AppDomain.CurrentDomain.ProcessExit += new EventHandler(Logger.ProcessExitEvent);
+        }
+#endif
+
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
+        private static void Close()
+        {
+            Logger.isClosed = true;
+
+            TraceSource source = Logger.traceSource;
+            if (source != null)
+            {
+                Logger.traceSource = null;
+                source.Close();
+            }
+        }
+
+        private static void ProcessExitEvent(object sender, EventArgs e)
+        {
+            Logger.Close();
+        }
+
+        private static void AppDomainUnloadEvent(object sender, EventArgs e)
+        {
+            Logger.Close();
+        }
+#endif
+
         internal static void LogError(OperationContext operationContext, string format, params object[] args)
         {
-#if !PORTABLE
-            if (Logger.eventSource.IsEnabled() &&
+#if WINDOWS_PHONE
+            if (Logger.ShouldLog(LogLevel.Error, operationContext))
+            {
+                Debug.WriteLine(Logger.FormatLine(operationContext, format, args));
+            }
+#else
+            if (!Logger.isClosed &&
+                Logger.traceSource.Switch.ShouldTrace(TraceEventType.Error) &&
                 Logger.ShouldLog(LogLevel.Error, operationContext))
             {
-                Logger.eventSource.Error(Logger.FormatLine(operationContext, format, args));
+                Logger.traceSource.TraceEvent(TraceEventType.Error, 1, Logger.FormatLine(operationContext, format, args));
             }
 #endif
         }
 
         internal static void LogWarning(OperationContext operationContext, string format, params object[] args)
         {
-#if !PORTABLE
-            if (Logger.eventSource.IsEnabled() &&
+#if WINDOWS_PHONE
+            if (Logger.ShouldLog(LogLevel.Warning, operationContext))
+            {
+                Debug.WriteLine(Logger.FormatLine(operationContext, format, args));
+            }
+#else
+            if (!Logger.isClosed &&
+                Logger.traceSource.Switch.ShouldTrace(TraceEventType.Warning) &&
                 Logger.ShouldLog(LogLevel.Warning, operationContext))
             {
-                Logger.eventSource.Warning(Logger.FormatLine(operationContext, format, args));
+                Logger.traceSource.TraceEvent(TraceEventType.Warning, 2, Logger.FormatLine(operationContext, format, args));
             }
 #endif
         }
 
         internal static void LogInformational(OperationContext operationContext, string format, params object[] args)
         {
-#if !PORTABLE
-            if (Logger.eventSource.IsEnabled() &&
+#if WINDOWS_PHONE
+            if (Logger.ShouldLog(LogLevel.Informational, operationContext))
+            {
+                Debug.WriteLine(Logger.FormatLine(operationContext, format, args));
+            }
+#else
+            if (!Logger.isClosed &&
+                Logger.traceSource.Switch.ShouldTrace(TraceEventType.Information) &&
                 Logger.ShouldLog(LogLevel.Informational, operationContext))
             {
-                Logger.eventSource.Informational(Logger.FormatLine(operationContext, format, args));
+                Logger.traceSource.TraceEvent(TraceEventType.Information, 3, Logger.FormatLine(operationContext, format, args));
             }
 #endif
         }
 
         internal static void LogVerbose(OperationContext operationContext, string format, params object[] args)
         {
-#if !PORTABLE
-            if (Logger.eventSource.IsEnabled() &&
+#if WINDOWS_PHONE
+            if (Logger.ShouldLog(LogLevel.Verbose, operationContext))
+            {
+                Debug.WriteLine(Logger.FormatLine(operationContext, format, args));
+            }
+#else
+            if (!Logger.isClosed &&
+                Logger.traceSource.Switch.ShouldTrace(TraceEventType.Verbose) &&
                 Logger.ShouldLog(LogLevel.Verbose, operationContext))
             {
-                Logger.eventSource.Verbose(Logger.FormatLine(operationContext, format, args));
+                Logger.traceSource.TraceEvent(TraceEventType.Verbose, 4, Logger.FormatLine(operationContext, format, args));
             }
 #endif
         }

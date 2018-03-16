@@ -14,6 +14,9 @@
 //    limitations under the License.
 // </copyright>
 //-----------------------------------------------------------------------
+
+using Microsoft.Azure.KeyVault.Core; // Sandboxable: Must be outside namespace
+
 namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
 {
     using Sandboxable.Microsoft.WindowsAzure.Storage.Blob.Protocol;
@@ -29,9 +32,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
     using System.Threading;
     using System.Threading.Tasks;
 
-    /// <summary>
-    /// Represents a blob.
-    /// </summary>
     public partial class CloudBlob : IListBlobItem
     {
 #if SYNC
@@ -268,6 +268,23 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         }
 
         /// <summary>
+        /// Begins an asynchronous operation to download the contents of a blob to a stream.
+        /// </summary>
+        /// <param name="target">A <see cref="System.IO.Stream"/> object representing the target stream.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressIncrementer"> An <see cref="AggregatingProgressIncrementer"/> object to gather progress deltas.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        internal ICancellableAsyncResult BeginDownloadToStream(Stream target, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AggregatingProgressIncrementer progressIncrementer, AsyncCallback callback, object state)
+        {
+            return this.BeginDownloadRangeToStream(target, null /* offset */, null /* length */, accessCondition, options, operationContext, progressIncrementer, callback, state);
+        }
+
+        /// <summary>
         /// Ends an asynchronous operation to download the contents of a blob to a stream.
         /// </summary>
         /// <param name="asyncResult">An <see cref="IAsyncResult"/> that references the pending asynchronous operation.</param>
@@ -328,6 +345,258 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         {
             return AsyncExtensions.TaskFromVoidApm(this.BeginDownloadToStream, this.EndDownloadToStream, target, accessCondition, options, operationContext, cancellationToken);
         }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to download the contents of a blob to a stream.
+        /// </summary>
+        /// <param name="target">A <see cref="System.IO.Stream"/> object representing the target stream.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressHandler"> A <see cref="System.IProgress{StorageProgress}"/> object to handle <see cref="StorageProgress"/> messages.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        public virtual Task DownloadToStreamAsync(Stream target, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, IProgress<StorageProgress> progressHandler, CancellationToken cancellationToken)
+        {
+            return AsyncExtensions.TaskFromVoidApm(this.BeginDownloadToStream, this.EndDownloadToStream, target, accessCondition, options, operationContext, new AggregatingProgressIncrementer(progressHandler), cancellationToken);
+        }
+#endif
+
+#if SYNC
+        /// <summary>
+        /// Rotates the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. 
+        /// For this operation, there must not be an <see cref="AccessCondition.IfMatchETag"/>, <see cref="AccessCondition.IfNoneMatchETag"/>, 
+        /// <see cref="AccessCondition.IfModifiedSinceTime"/>, or <see cref="AccessCondition.IfNotModifiedSinceTime"/> condition.  
+        /// An <see cref="AccessCondition.IfMatchETag"/> condition will be added internally.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual void RotateEncryptionKey(AccessCondition accessCondition = null, BlobRequestOptions options = null, OperationContext operationContext = null)
+        {
+            BlobRequestOptions modifiedOptions = BlobRequestOptions.ApplyDefaults(options, BlobType.Unspecified, this.ServiceClient);
+
+            WrappedKeyData wrappedKey = CommonUtility.RunWithoutSynchronizationContext(() => this.RotateEncryptionHelper(accessCondition, modifiedOptions, CancellationToken.None).Result);
+            BlobEncryptionData encryptionData = wrappedKey.encryptionData;
+
+            // Update the encryption metadata with the newly wrapped CEK and call SetMetadata.
+            encryptionData.WrappedContentKey = new WrappedKey(modifiedOptions.EncryptionPolicy.Key.Kid, wrappedKey.encryptedKey, wrappedKey.algorithm);
+
+            this.Metadata[Constants.EncryptionConstants.BlobEncryptionData] = Newtonsoft.Json.JsonConvert.SerializeObject(encryptionData, Newtonsoft.Json.Formatting.None);
+
+            if (accessCondition == null)
+            {
+                accessCondition = new AccessCondition();
+            }
+
+            accessCondition.IfMatchETag = this.Properties.ETag;
+            try
+            {
+                this.SetMetadata(accessCondition, modifiedOptions, operationContext);
+            }
+            // This bit is to improve the error handling case.
+            // If the set-metadata fails, we check if it failed with a Precondition Failure.  If so, we wrap the failure with a 
+            // new StorageException that contains a better error message.
+            // This is important because the library is internally adding an AccessCondition, which may be difficult for users to realize / debug.
+            catch (StorageException e)
+            {
+                // Check to see if our new If-Match condition failed, and if so, give a more helpful exception message.
+                if (e.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed)
+                {
+                    StorageException wrapperException = new StorageException(e.RequestInformation, SR.KeyRotationPreconditionFailed, e);
+                    throw wrapperException;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+#endif
+
+        /// <summary>
+        /// Begins an asynchronous operation to rotate the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual ICancellableAsyncResult BeginRotateEncryptionKey(AsyncCallback callback, object state)
+        {
+            return this.BeginRotateEncryptionKey(null /* accessCondition */, null /* options */, null /* operationContext */, callback, state);
+        }
+
+        /// <summary>
+        /// Begins an asynchronous operation to rotate the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. 
+        /// For this operation, there must not be an <see cref="AccessCondition.IfMatchETag"/>, <see cref="AccessCondition.IfNoneMatchETag"/>, 
+        /// <see cref="AccessCondition.IfModifiedSinceTime"/>, or <see cref="AccessCondition.IfNotModifiedSinceTime"/> condition.  
+        /// An <see cref="AccessCondition.IfMatchETag"/> condition will be added internally.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual ICancellableAsyncResult BeginRotateEncryptionKey(AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
+        {
+            return new CancellableAsyncResultTaskWrapper(token => RotateEncryptionKeyAsync(accessCondition, options, operationContext, token), callback, state);
+        }
+
+        /// <summary>
+        /// Ends an asynchronous operation to rotate the encryption key on this blob.
+        /// </summary>
+        /// <param name="asyncResult">An <see cref="IAsyncResult"/> that references the pending asynchronous operation.</param>
+        public virtual void EndRotateEncryptionKey(IAsyncResult asyncResult)
+        {
+            ((CancellableAsyncResultTaskWrapper)asyncResult).Wait();
+        }
+
+#if TASK
+
+        /// <summary>
+        /// Initiates an asynchronous operation to rotate the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns> 
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual Task RotateEncryptionKeyAsync()
+        {
+            return this.RotateEncryptionKeyAsync(CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to rotate the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns> 
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual Task RotateEncryptionKeyAsync(CancellationToken cancellationToken)
+        {
+            return this.RotateEncryptionKeyAsync(null /* accessCondition */, null /* options */, null /* operationContext */, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to rotate the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. 
+        /// For this operation, there must not be an <see cref="AccessCondition.IfMatchETag"/>, <see cref="AccessCondition.IfNoneMatchETag"/>, 
+        /// <see cref="AccessCondition.IfModifiedSinceTime"/>, or <see cref="AccessCondition.IfNotModifiedSinceTime"/> condition.  
+        /// An <see cref="AccessCondition.IfMatchETag"/> condition will be added internally.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns> 
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual Task RotateEncryptionKeyAsync(AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext)
+        {
+            return this.RotateEncryptionKeyAsync(accessCondition, options, operationContext, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to rotate the encryption key on this blob.
+        /// This method rotates only the KEK, not the CEK.  For more information, visit https://azure.microsoft.com/en-us/documentation/articles/storage-client-side-encryption/
+        /// </summary>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. 
+        /// For this operation, there must not be an <see cref="AccessCondition.IfMatchETag"/>, <see cref="AccessCondition.IfNoneMatchETag"/>, 
+        /// <see cref="AccessCondition.IfModifiedSinceTime"/>, or <see cref="AccessCondition.IfNotModifiedSinceTime"/> condition.  
+        /// An <see cref="AccessCondition.IfMatchETag"/> condition will be added internally.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns> 
+        /// <remarks>
+        /// This method has a number of prerequisites:
+        /// 1. The blob must be encrypted on the service using client-side encryption (not service-side encryption.)
+        /// 2. The local object must have the latest attributes from the blob on the service.  This can be done by calling FetchAttributes() on the blob, or by listing blobs in the container with metadata.
+        /// 3. The Encryption Policy on the default BlobRequestOptions must contain an IKeyResolver capable of resolving the old encryption key.
+        /// 4. The Encryption Policy on the default BlobRequestOptions must contain an IKey with the new encryption key.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual async Task RotateEncryptionKeyAsync(AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, CancellationToken cancellationToken)
+        {
+            BlobRequestOptions modifiedOptions = BlobRequestOptions.ApplyDefaults(options, BlobType.Unspecified, this.ServiceClient);
+
+            WrappedKeyData wrappedKey = await this.RotateEncryptionHelper(accessCondition, modifiedOptions, cancellationToken).ConfigureAwait(false);
+
+            BlobEncryptionData encryptionData = wrappedKey.encryptionData;
+
+            encryptionData.WrappedContentKey = new WrappedKey(modifiedOptions.EncryptionPolicy.Key.Kid, wrappedKey.encryptedKey, wrappedKey.algorithm);
+
+            this.Metadata[Constants.EncryptionConstants.BlobEncryptionData] = Newtonsoft.Json.JsonConvert.SerializeObject(encryptionData, Newtonsoft.Json.Formatting.None);
+
+            if (accessCondition == null)
+            {
+                accessCondition = new AccessCondition();
+            }
+
+            accessCondition.IfMatchETag = this.Properties.ETag;
+
+            try
+            {
+                await this.SetMetadataAsync(accessCondition, modifiedOptions, operationContext, cancellationToken).ConfigureAwait(false);
+            }
+            catch (StorageException ex)
+            {
+                // This bit is to improve the error handling case.
+                // If the set-metadata fails, we check if it failed with a Precondition Failure.  If so, we wrap the failure with a 
+                // new StorageException that contains a better error message.
+                // This is important because the library is internally adding an AccessCondition, which may be difficult for users to realize / debug.
+                if (ex.RequestInformation.HttpStatusCode == (int)HttpStatusCode.PreconditionFailed)
+                {
+                    throw new StorageException(ex.RequestInformation, SR.KeyRotationPreconditionFailed, ex);
+                }
+            }
+        }
 #endif
 
 #if SYNC
@@ -343,7 +612,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         public virtual void DownloadToFile(string path, FileMode mode, AccessCondition accessCondition = null, BlobRequestOptions options = null, OperationContext operationContext = null)
         {
             CommonUtility.AssertNotNull("path", path);
-            FileStream fileStream = new FileStream(path, mode, FileAccess.Write);
+            FileStream fileStream = new FileStream(path, mode, FileAccess.Write, FileShare.None);
 
             try
             {
@@ -400,9 +669,27 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         [DoesServiceRequest]
         public virtual ICancellableAsyncResult BeginDownloadToFile(string path, FileMode mode, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
         {
+            return this.BeginDownloadToFile(path, mode, accessCondition, options, operationContext, AggregatingProgressIncrementer.None, callback, state);
+        }
+
+        /// <summary>
+        /// Begins an asynchronous operation to download the contents of a blob to a file.
+        /// </summary>
+        /// <param name="path">A string containing the path to the target file.</param>
+        /// <param name="mode">A <see cref="System.IO.FileMode"/> enumeration value that determines how to open or create the file.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressIncrementer"> An <see cref="AggregatingProgressIncrementer"/> object to gather progress deltas.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        private ICancellableAsyncResult BeginDownloadToFile(string path, FileMode mode, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AggregatingProgressIncrementer progressIncrementer, AsyncCallback callback, object state)
+        {
             CommonUtility.AssertNotNull("path", path);
 
-            FileStream fileStream = new FileStream(path, mode, FileAccess.Write);
+            FileStream fileStream = new FileStream(path, mode, FileAccess.Write, FileShare.None);
             StorageAsyncResult<NullType> storageAsyncResult = new StorageAsyncResult<NullType>(callback, state)
             {
                 OperationState = Tuple.Create<FileStream, FileMode>(fileStream, mode)
@@ -410,7 +697,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
 
             try
             {
-                ICancellableAsyncResult asyncResult = this.BeginDownloadToStream(fileStream, accessCondition, options, operationContext, this.DownloadToFileCallback, storageAsyncResult);
+                ICancellableAsyncResult asyncResult = this.BeginDownloadToStream(fileStream, accessCondition, options, operationContext, progressIncrementer, this.DownloadToFileCallback, storageAsyncResult); 
                 storageAsyncResult.CancelDelegate = asyncResult.Cancel;
                 return storageAsyncResult;
             }
@@ -541,6 +828,115 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         {
             return AsyncExtensions.TaskFromVoidApm(this.BeginDownloadToFile, this.EndDownloadToFile, path, mode, accessCondition, options, operationContext, cancellationToken);
         }
+
+#if WINDOWS_DESKTOP && !WINDOWS_PHONE
+        /// <summary>
+        /// Initiates an asynchronous operation to download the contents of a blob to a file by making parallel requests.
+        /// </summary>
+        /// <param name="path">A string containing the path to the target file.</param>
+        /// <param name="mode">A <see cref="System.IO.FileMode"/> enumeration value that determines how to open or create the file.</param>
+        /// <param name="parallelIOCount">The maximum number of ranges that can be downloaded concurrently</param>
+        /// <param name="rangeSizeInBytes">The size of each individual range in bytes that is being dowloaded in parallel.
+        /// The range size must be a multiple of 4 KB and a minimum of 4 MB. If no value is passed a default value of 16 MB is used or 4MB if transactional MD5 is enabled.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns>
+        /// <remarks>
+        /// The parallelIOCount and rangeSizeInBytes should be adjusted depending on the CPU, memory, and bandwidth.
+        /// This API should only be used for larger downloads as a HEAD request is made prior to downloading the data.
+        /// For smaller blobs, please use DownloadToFileAsync().
+        /// To get the best performance, it is recommended to try several values, and measure throughput.
+        /// One place to start would be to set the parallelIOCount to the number of CPUs.
+        /// Then adjust the rangeSizeInBytes so that parallelIOCount times rangeSizeInBytes equals the amount of memory you want the process to consume.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual Task DownloadToFileParallelAsync(string path, FileMode mode, int parallelIOCount, long? rangeSizeInBytes)
+        {
+            return this.DownloadToFileParallelAsync(path, mode, parallelIOCount, rangeSizeInBytes, 0, null, null, null, null, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to download the contents of a blob to a file by making parallel requests.
+        /// </summary>
+        /// <param name="path">A string containing the path to the target file.</param>
+        /// <param name="mode">A <see cref="System.IO.FileMode"/> enumeration value that determines how to open or create the file.</param>
+        /// <param name="parallelIOCount">The maximum number of ranges that can be downloaded concurrently.</param>
+        /// <param name="rangeSizeInBytes">The size of each individual range in bytes that is being dowloaded in parallel.
+        /// The range size must be a multiple of 4 KB and a minimum of 4 MB. If no value is passed a default value of 16 MB is used or 4MB if transactional MD5 is enabled.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns>
+        /// <remarks>
+        /// The parallelIOCount and rangeSizeInBytes should be adjusted depending on the CPU, memory, and bandwidth.
+        /// This API should only be used for larger downloads as a HEAD request is made prior to downloading the data.
+        /// For smaller blobs, please use DownloadToFileAsync().
+        /// To get the best performance, it is recommended to try several values, and measure throughput.
+        /// One place to start would be to set the parallelIOCount to the number of CPUs.
+        /// Then adjust the rangeSizeInBytes so that parallelIOCount times rangeSizeInBytes equals the amount of memory you want the process to consume.
+        /// 
+        /// ## Examples
+        /// [!code-csharp[DownloadToFileParallel](~/azure-storage-net/Test/Common/Blob/BlobLargeDownloadToFileTests.cs#sample_DownloadToFileParallel "DownloadToFileParallel Sample")]
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual Task DownloadToFileParallelAsync(string path, FileMode mode, int parallelIOCount, long? rangeSizeInBytes, CancellationToken cancellationToken)
+        {
+            return this.DownloadToFileParallelAsync(path, mode, parallelIOCount, rangeSizeInBytes, 0, null, null, null, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to download the contents of a blob to a file by making parallel requests.
+        /// </summary>
+        /// <param name="path">A string containing the path to the target file.</param>
+        /// <param name="mode">A <see cref="System.IO.FileMode"/> enumeration value that determines how to open or create the file.</param>
+        /// <param name="parallelIOCount">The maximum number of ranges that can be downloaded concurrently</param>
+        /// <param name="rangeSizeInBytes">The size of each individual range in bytes that is being dowloaded in parallel.
+        /// The range size must be a multiple of 4 KB and a minimum of 4 MB. If no value is passed a default value of 16 MB or 4MB if transactional MD5 is enabled.</param>
+        /// <param name="offset">The offset of the blob.</param>
+        /// <param name="length">The number of bytes to download.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns>
+        /// <remarks>
+        /// The parallelIOCount and rangeSizeInBytes should be adjusted depending on the CPU, memory, and bandwidth.
+        /// This API should only be used for larger downloads as a HEAD request is made prior to downloading the data.
+        /// For smaller blobs, please use DownloadToFileAsync().
+        /// To get the best performance, it is recommended to try several values, and measure throughput.
+        /// One place to start would be to set the parallelIOCount to the number of CPUs.
+        /// Then adjust the rangeSizeInBytes so that parallelIOCount times rangeSizeInBytes equals the amount of memory you want the process to consume.
+        /// </remarks>
+        [DoesServiceRequest]
+        public virtual Task DownloadToFileParallelAsync(string path, FileMode mode, int parallelIOCount, long? rangeSizeInBytes, long offset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, CancellationToken cancellationToken)
+        {
+            ParallelDownloadToFile pdf = ParallelDownloadToFile.Start(
+                this,
+                path,
+                mode,
+                parallelIOCount,
+                rangeSizeInBytes,
+                offset,
+                length,
+                accessCondition,
+                options,
+                operationContext,
+                cancellationToken);
+            return pdf.Task;
+        }
+#endif
+        /// <summary>
+        /// Initiates an asynchronous operation to download the contents of a blob to a file.
+        /// </summary>
+        /// <param name="path">A string containing the path to the target file.</param>
+        /// <param name="mode">A <see cref="System.IO.FileMode"/> enumeration value that determines how to open or create the file.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressHandler"> A <see cref="System.IProgress{StorageProgress}"/> object to handle <see cref="StorageProgress"/> messages.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        public virtual Task DownloadToFileAsync(string path, FileMode mode, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, IProgress<StorageProgress> progressHandler, CancellationToken cancellationToken)
+        {
+            return AsyncExtensions.TaskFromVoidApm(this.BeginDownloadToFile, this.EndDownloadToFile, path, mode, accessCondition, options, operationContext, new AggregatingProgressIncrementer(progressHandler), cancellationToken);
+        }
 #endif
 
 #if SYNC
@@ -589,6 +985,24 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         public virtual ICancellableAsyncResult BeginDownloadToByteArray(byte[] target, int index, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
         {
             return this.BeginDownloadRangeToByteArray(target, index, null /* blobOffset */, null /* length */, accessCondition, options, operationContext, callback, state);
+        }
+
+        /// <summary>
+        /// Begins an asynchronous operation to download the contents of a blob to a byte array.
+        /// </summary>
+        /// <param name="target">The target byte array.</param>
+        /// <param name="index">The starting offset in the byte array.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressIncrementer"> An <see cref="AggregatingProgressIncrementer"/> object to gather progress deltas.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        private ICancellableAsyncResult BeginDownloadToByteArray(byte[] target, int index, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AggregatingProgressIncrementer progressIncrementer, AsyncCallback callback, object state)
+        {
+            return this.BeginDownloadRangeToByteArray(target, index, null /* blobOffset */, null /* length */, accessCondition, options, operationContext, progressIncrementer, callback, state);
         }
 
         /// <summary>
@@ -657,6 +1071,23 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         {
             return AsyncExtensions.TaskFromApm(this.BeginDownloadToByteArray, this.EndDownloadToByteArray, target, index, accessCondition, options, operationContext, cancellationToken);
         }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to download the contents of a blob to a byte array.
+        /// </summary>
+        /// <param name="target">The target byte array.</param>
+        /// <param name="index">The starting offset in the byte array.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressHandler"> A <see cref="System.IProgress{StorageProgress}"/> object to handle <see cref="StorageProgress"/> messages.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task{T}"/> object of type <c>int</c> that represents the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        public virtual Task<int> DownloadToByteArrayAsync(byte[] target, int index, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, IProgress<StorageProgress> progressHandler, CancellationToken cancellationToken)
+        {
+            return AsyncExtensions.TaskFromApm(this.BeginDownloadToByteArray, this.EndDownloadToByteArray, target, index, accessCondition, options, operationContext, new AggregatingProgressIncrementer(progressHandler), cancellationToken);
+        }
 #endif
 
 #if SYNC
@@ -712,11 +1143,30 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         [DoesServiceRequest]
         public virtual ICancellableAsyncResult BeginDownloadRangeToStream(Stream target, long? offset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
         {
+            return this.BeginDownloadRangeToStream(target, offset, length, accessCondition, options, operationContext, AggregatingProgressIncrementer.None, callback, state);
+        }
+
+        /// <summary>
+        /// Begins an asynchronous operation to download a range of bytes from a blob to a stream.
+        /// </summary>
+        /// <param name="target">A <see cref="System.IO.Stream"/> object representing the target stream.</param>
+        /// <param name="offset">The offset at which to begin downloading the blob, in bytes.</param>
+        /// <param name="length">The length of the data to download from the blob, in bytes.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressIncrementer"> An <see cref="AggregatingProgressIncrementer"/> object to gather progress deltas.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        private ICancellableAsyncResult BeginDownloadRangeToStream(Stream target, long? offset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AggregatingProgressIncrementer progressIncrementer, AsyncCallback callback, object state)
+        {
             CommonUtility.AssertNotNull("target", target);
 
             BlobRequestOptions modifiedOptions = BlobRequestOptions.ApplyDefaults(options, BlobType.Unspecified, this.ServiceClient);
             return Executor.BeginExecuteAsync(
-                this.GetBlobImpl(this.attributes, target, offset, length, accessCondition, modifiedOptions),
+                this.GetBlobImpl(this.attributes, progressIncrementer.CreateProgressIncrementingStream(target), offset, length, accessCondition, modifiedOptions),
                 modifiedOptions.RetryPolicy,
                 operationContext,
                 callback,
@@ -792,6 +1242,24 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         {
             return AsyncExtensions.TaskFromVoidApm(this.BeginDownloadRangeToStream, this.EndDownloadRangeToStream, target, offset, length, accessCondition, options, operationContext, cancellationToken);
         }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to download a range of bytes from a blob to a stream.
+        /// </summary>
+        /// <param name="target">A <see cref="System.IO.Stream"/> object representing the target stream.</param>
+        /// <param name="offset">The offset at which to begin downloading the blob, in bytes.</param>
+        /// <param name="length">The length of the data to download from the blob, in bytes.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressHandler"> A <see cref="System.IProgress{StorageProgress}"/> object to handle <see cref="StorageProgress"/> messages.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task"/> object that represents the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        public virtual Task DownloadRangeToStreamAsync(Stream target, long? offset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, IProgress<StorageProgress> progressHandler, CancellationToken cancellationToken)
+        {
+            return AsyncExtensions.TaskFromVoidApm(this.BeginDownloadRangeToStream, this.EndDownloadRangeToStream, target, offset, length, accessCondition, options, operationContext, new AggregatingProgressIncrementer(progressHandler), cancellationToken);
+        }
 #endif
 
 #if SYNC
@@ -849,6 +1317,26 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         [DoesServiceRequest]
         public virtual ICancellableAsyncResult BeginDownloadRangeToByteArray(byte[] target, int index, long? blobOffset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
         {
+            return this.BeginDownloadRangeToByteArray(target, index, blobOffset, length, accessCondition, options, operationContext, AggregatingProgressIncrementer.None, callback, state);
+        }
+
+        /// <summary>
+        /// Begins an asynchronous operation to download a range of bytes from a blob to a byte array.
+        /// </summary>
+        /// <param name="target">The target byte array.</param>
+        /// <param name="index">The starting offset in the byte array.</param>
+        /// <param name="blobOffset">The starting offset of the data range, in bytes.</param>
+        /// <param name="length">The length of the data to download from the blob, in bytes.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressIncrementer"> An <see cref="AggregatingProgressIncrementer"/> object to gather progress deltas.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        private ICancellableAsyncResult BeginDownloadRangeToByteArray(byte[] target, int index, long? blobOffset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, AggregatingProgressIncrementer progressIncrementer, AsyncCallback callback, object state)
+        {
             SyncMemoryStream stream = new SyncMemoryStream(target, index);
             StorageAsyncResult<int> storageAsyncResult = new StorageAsyncResult<int>(callback, state) { OperationState = stream };
 
@@ -859,6 +1347,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 accessCondition,
                 options,
                 operationContext,
+                progressIncrementer,
                 this.DownloadRangeToByteArrayCallback,
                 storageAsyncResult);
 
@@ -963,6 +1452,25 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         public virtual Task<int> DownloadRangeToByteArrayAsync(byte[] target, int index, long? blobOffset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, CancellationToken cancellationToken)
         {
             return AsyncExtensions.TaskFromApm(this.BeginDownloadRangeToByteArray, this.EndDownloadRangeToByteArray, target, index, blobOffset, length, accessCondition, options, operationContext, cancellationToken);
+        }
+
+        /// <summary>
+        /// Initiates an asynchronous operation to download a range of bytes from a blob to a byte array.
+        /// </summary>
+        /// <param name="target">The target byte array.</param>
+        /// <param name="index">The starting offset in the byte array.</param>
+        /// <param name="blobOffset">The starting offset of the data range, in bytes.</param>
+        /// <param name="length">The length of the data to download from the blob, in bytes.</param>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="progressHandler"> A <see cref="System.IProgress{StorageProgress}"/> object to handle <see cref="StorageProgress"/> messages.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
+        /// <returns>A <see cref="Task{T}"/> object of type <c>int</c> that represents the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        public virtual Task<int> DownloadRangeToByteArrayAsync(byte[] target, int index, long? blobOffset, long? length, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, IProgress<StorageProgress> progressHandler, CancellationToken cancellationToken)
+        {
+            return AsyncExtensions.TaskFromApm(this.BeginDownloadRangeToByteArray, this.EndDownloadRangeToByteArray, target, index, blobOffset, length, accessCondition, options, operationContext, new AggregatingProgressIncrementer(progressHandler), cancellationToken);
         }
 #endif
 
@@ -1438,7 +1946,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Deletes the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1468,7 +1976,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Begins an asynchronous operation to delete the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1521,7 +2029,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1535,7 +2043,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1552,7 +2060,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Deletes the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1562,13 +2070,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         {
             BlobRequestOptions modifiedOptions = BlobRequestOptions.ApplyDefaults(options, BlobType.Unspecified, this.ServiceClient);
             operationContext = operationContext ?? new OperationContext();
-
-            bool exists = this.Exists(true, modifiedOptions, operationContext);
-            if (!exists)
-            {
-                return false;
-            }
-
+           
             try
             {
                 this.Delete(deleteSnapshotsOption, accessCondition, modifiedOptions, operationContext);
@@ -1579,7 +2081,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 if (e.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound)
                 {
                     if ((e.RequestInformation.ExtendedErrorInformation == null) ||
-                        (e.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound))
+                        (e.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound) ||
+                        (e.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.ContainerNotFound))
                     {
                         return false;
                     }
@@ -1611,7 +2114,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Begins an asynchronous request to delete the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1636,85 +2139,44 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
 
         private void DeleteIfExistsHandler(DeleteSnapshotsOption deleteSnapshotsOption, AccessCondition accessCondition, BlobRequestOptions options, OperationContext operationContext, StorageAsyncResult<bool> storageAsyncResult)
         {
-            ICancellableAsyncResult savedExistsResult = this.BeginExists(
-                true,
+            ICancellableAsyncResult savedDeleteResult = this.BeginDelete(
+                deleteSnapshotsOption,
+                accessCondition,
                 options,
                 operationContext,
-                existsResult =>
+                deleteResult =>
                 {
-                    storageAsyncResult.UpdateCompletedSynchronously(existsResult.CompletedSynchronously);
-                    lock (storageAsyncResult.CancellationLockerObject)
+                    storageAsyncResult.UpdateCompletedSynchronously(deleteResult.CompletedSynchronously);
+                    storageAsyncResult.CancelDelegate = null;
+                    try
                     {
-                        storageAsyncResult.CancelDelegate = null;
-                        try
+                        this.EndDelete(deleteResult);
+                        storageAsyncResult.Result = true;
+                        storageAsyncResult.OnComplete();
+                    }
+                    catch (StorageException e)
+                    {
+                        if ((e.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound) &&
+                            ((e.RequestInformation.ExtendedErrorInformation == null) ||
+                            (e.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound) ||
+                            (e.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.ContainerNotFound)))
                         {
-                            bool exists = this.EndExists(existsResult);
-                            if (!exists)
-                            {
-                                storageAsyncResult.Result = false;
-                                storageAsyncResult.OnComplete();
-                                return;
-                            }
-
-                            ICancellableAsyncResult savedDeleteResult = this.BeginDelete(
-                                deleteSnapshotsOption,
-                                accessCondition,
-                                options,
-                                operationContext,
-                                deleteResult =>
-                                {
-                                    storageAsyncResult.UpdateCompletedSynchronously(deleteResult.CompletedSynchronously);
-                                    storageAsyncResult.CancelDelegate = null;
-                                    try
-                                    {
-                                        this.EndDelete(deleteResult);
-                                        storageAsyncResult.Result = true;
-                                        storageAsyncResult.OnComplete();
-                                    }
-                                    catch (StorageException e)
-                                    {
-                                        if (e.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound)
-                                        {
-                                            if ((e.RequestInformation.ExtendedErrorInformation == null) ||
-                                                (e.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound))
-                                            {
-                                                storageAsyncResult.Result = false;
-                                                storageAsyncResult.OnComplete();
-                                            }
-                                            else
-                                            {
-                                                storageAsyncResult.OnComplete(e);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            storageAsyncResult.OnComplete(e);
-                                        }
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        storageAsyncResult.OnComplete(e);
-                                    }
-                                },
-                                null /* state */);
-
-                            storageAsyncResult.CancelDelegate = savedDeleteResult.Cancel;
-                            if (storageAsyncResult.CancelRequested)
-                            {
-                                storageAsyncResult.Cancel();
-                            }
+                            storageAsyncResult.Result = false;
+                            storageAsyncResult.OnComplete();
                         }
-                        catch (Exception e)
+                        else
                         {
                             storageAsyncResult.OnComplete(e);
                         }
                     }
+                    catch (Exception e)
+                    {
+                        storageAsyncResult.OnComplete(e);
+                    }
                 },
                 null /* state */);
 
-            // We do not need to do this inside a lock, as storageAsyncResult is
-            // not returned to the user yet.
-            storageAsyncResult.CancelDelegate = savedExistsResult.Cancel;
+            storageAsyncResult.CancelDelegate = savedDeleteResult.Cancel;
         }
 
         /// <summary>
@@ -1725,6 +2187,11 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         public virtual bool EndDeleteIfExists(IAsyncResult asyncResult)
         {
             StorageAsyncResult<bool> res = (StorageAsyncResult<bool>)asyncResult;
+            if (res.CancelRequested)
+            {
+                res.Cancel();
+            }
+
             res.End();
             return res.Result;
         }
@@ -1754,7 +2221,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1768,7 +2235,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <summary>
         /// Initiates an asynchronous operation to delete the blob if it already exists.
         /// </summary>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
@@ -1787,7 +2254,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
@@ -1809,7 +2276,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="callback">An optional callback delegate that will receive notification when the asynchronous operation completes.</param>
         /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
@@ -1825,7 +2292,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
@@ -1861,7 +2328,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <returns>A <see cref="Task{T}"/> object of type <c>string</c> that represents the asynchronous operation.</returns>
         [DoesServiceRequest]
@@ -1875,7 +2342,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for a task to complete.</param>
         /// <returns>A <see cref="Task{T}"/> object of type <c>string</c> that represents the asynchronous operation.</returns>
@@ -1890,7 +2357,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
@@ -1907,7 +2374,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If <c>null</c>, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
@@ -2419,11 +2886,31 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         [DoesServiceRequest]
         public virtual string StartCopy(Uri source, AccessCondition sourceAccessCondition = null, AccessCondition destAccessCondition = null, BlobRequestOptions options = null, OperationContext operationContext = null)
         {
+            return this.StartCopy(source, null /* premiumPageBlobTier */, sourceAccessCondition, destAccessCondition, options, operationContext);
+        }
+
+        /// <summary>
+        /// Begins an operation to start copying another blob's contents, properties, and metadata to this blob.
+        /// </summary>
+        /// <param name="source">The <see cref="System.Uri"/> of the source blob.</param>
+        /// <param name="premiumPageBlobTier">A <see cref="PremiumPageBlobTier"/> representing the tier to set.</param>
+        /// <param name="sourceAccessCondition">An <see cref="AccessCondition"/> object that represents the access conditions for the source blob. If <c>null</c>, no condition is used.</param>
+        /// <param name="destAccessCondition">An <see cref="AccessCondition"/> object that represents the access conditions for the destination blob. If <c>null</c>, no condition is used.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. If <c>null</c>, default options are applied to the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <returns>The copy ID associated with the copy operation.</returns>
+        /// <remarks>
+        /// This method fetches the blob's ETag, last-modified time, and part of the copy state.
+        /// The copy ID and copy status fields are fetched, and the rest of the copy state is cleared.
+        /// </remarks>
+        [DoesServiceRequest]
+        internal virtual string StartCopy(Uri source, PremiumPageBlobTier? premiumPageBlobTier, AccessCondition sourceAccessCondition, AccessCondition destAccessCondition, BlobRequestOptions options, OperationContext operationContext)
+        {
             CommonUtility.AssertNotNull("source", source);
             this.attributes.AssertNoSnapshot();
             BlobRequestOptions modifiedOptions = BlobRequestOptions.ApplyDefaults(options, BlobType.Unspecified, this.ServiceClient);
             return Executor.ExecuteSync(
-                this.StartCopyImpl(this.attributes, source, sourceAccessCondition, destAccessCondition, modifiedOptions),
+                this.StartCopyImpl(this.attributes, source, false /* incrementalCopy */, premiumPageBlobTier, sourceAccessCondition, destAccessCondition, modifiedOptions),
                 modifiedOptions.RetryPolicy,
                 operationContext);
         }
@@ -2439,7 +2926,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         [DoesServiceRequest]
         public virtual ICancellableAsyncResult BeginStartCopy(Uri source, AsyncCallback callback, object state)
         {
-            return this.BeginStartCopy(source, null /* sourceAccessCondition */, null /* destAccessCondition */, null /* options */, null /* operationContext */, callback, state);
+            return this.BeginStartCopy(source, null /* premiumPageBlobTier */, null /* sourceAccessCondition */, null /* destAccessCondition */, null /* options */, null /* operationContext */, callback, state);
         }
 
         /// <summary>
@@ -2456,11 +2943,29 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         [DoesServiceRequest]
         public virtual ICancellableAsyncResult BeginStartCopy(Uri source, AccessCondition sourceAccessCondition, AccessCondition destAccessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
         {
+            return this.BeginStartCopy(source, null /* premiumPageBlobTier */, sourceAccessCondition, destAccessCondition, options, operationContext, callback, state);
+        }
+
+        /// <summary>
+        /// Begins an asynchronous operation to start copying another blob's contents, properties, and metadata to this blob.
+        /// </summary>
+        /// <param name="source">The <see cref="System.Uri"/> of the source blob.</param>
+        /// <param name="premiumPageBlobTier">A <see cref="PremiumPageBlobTier"/> representing the tier to set.</param>
+        /// <param name="sourceAccessCondition">An <see cref="AccessCondition"/> object that represents the access conditions for the source blob. If <c>null</c>, no condition is used.</param>
+        /// <param name="destAccessCondition">An <see cref="AccessCondition"/> object that represents the access conditions for the destination blob. If <c>null</c>, no condition is used.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="operationContext">An <see cref="OperationContext"/> object that represents the context for the current operation.</param>
+        /// <param name="callback">An <see cref="AsyncCallback"/> delegate that will receive notification when the asynchronous operation completes.</param>
+        /// <param name="state">A user-defined object that will be passed to the callback delegate.</param>
+        /// <returns>An <see cref="ICancellableAsyncResult"/> that references the asynchronous operation.</returns>
+        [DoesServiceRequest]
+        internal virtual ICancellableAsyncResult BeginStartCopy(Uri source, PremiumPageBlobTier? premiumPageBlobTier, AccessCondition sourceAccessCondition, AccessCondition destAccessCondition, BlobRequestOptions options, OperationContext operationContext, AsyncCallback callback, object state)
+        {
             CommonUtility.AssertNotNull("source", source);
             this.attributes.AssertNoSnapshot();
             BlobRequestOptions modifiedOptions = BlobRequestOptions.ApplyDefaults(options, BlobType.Unspecified, this.ServiceClient);
             return Executor.BeginExecuteAsync(
-                this.StartCopyImpl(this.attributes, source, sourceAccessCondition, destAccessCondition, modifiedOptions),
+                this.StartCopyImpl(this.attributes, source, false /* incrementalCopy */, premiumPageBlobTier, sourceAccessCondition, destAccessCondition, modifiedOptions),
                 modifiedOptions.RetryPolicy,
                 operationContext,
                 callback,
@@ -2905,7 +3410,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
 
                 if (!arePropertiesPopulated)
                 {
-                    CloudBlob.UpdateAfterFetchAttributes(blobAttributes, resp, isRangeGet);
+                    CloudBlob.UpdateAfterFetchAttributes(blobAttributes, resp);
                     storedMD5 = resp.Headers[HttpResponseHeader.ContentMd5];
 
                     if (options.EncryptionPolicy != null)
@@ -3005,7 +3510,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             getCmd.PreProcessResponse = (cmd, resp, ex, ctx) =>
             {
                 HttpResponseParsers.ProcessExpectedStatusCodeNoException(HttpStatusCode.OK, resp, NullType.Value, cmd, ex);
-                CloudBlob.UpdateAfterFetchAttributes(blobAttributes, resp, false);
+                CloudBlob.UpdateAfterFetchAttributes(blobAttributes, resp);
                 return NullType.Value;
             };
 
@@ -3037,7 +3542,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 }
 
                 HttpResponseParsers.ProcessExpectedStatusCodeNoException(HttpStatusCode.OK, resp, true, cmd, ex);
-                CloudBlob.UpdateAfterFetchAttributes(blobAttributes, resp, false);
+                CloudBlob.UpdateAfterFetchAttributes(blobAttributes, resp);
                 return true;
             };
 
@@ -3065,6 +3570,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             {
                 HttpResponseParsers.ProcessExpectedStatusCodeNoException(HttpStatusCode.OK, resp, NullType.Value, cmd, ex);
                 CloudBlob.UpdateETagLMTLengthAndSequenceNumber(blobAttributes, resp, false);
+                cmd.CurrentResult.IsRequestServerEncrypted = HttpResponseParsers.ParseServerRequestEncrypted(resp);
                 return NullType.Value;
             };
 
@@ -3102,7 +3608,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// Implements the DeleteBlob method.
         /// </summary>
         /// <param name="blobAttributes">The attributes.</param>
-        /// <param name="deleteSnapshotsOption">Whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
+        /// <param name="deleteSnapshotsOption">A <see cref="DeleteSnapshotsOption"/> object indicating whether to only delete the blob, to delete the blob and all snapshots, or to only delete the snapshots.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
         /// <returns>
@@ -3126,7 +3632,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// <param name="blobAttributes">The attributes.</param>
         /// <param name="leaseTime">A <see cref="System.TimeSpan"/> representing the span of time for which to acquire the lease,
         /// which will be rounded down to seconds. If null, an infinite lease will be acquired. If not null, this must be
-        /// greater than zero.</param>
+        /// 15 to 60 seconds.</param>
         /// <param name="proposedLeaseId">A string representing the proposed lease ID for the new lease, or <c>null</c> if no lease ID is proposed.</param>
         /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
@@ -3138,7 +3644,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             int leaseDuration = -1;
             if (leaseTime.HasValue)
             {
-                CommonUtility.AssertInBounds("leaseTime", leaseTime.Value, TimeSpan.FromSeconds(1), TimeSpan.MaxValue);
+                CommonUtility.AssertInBounds("leaseTime", leaseTime.Value, TimeSpan.FromSeconds(Constants.MinimumLeaseDuration), TimeSpan.FromSeconds(Constants.MaximumLeaseDuration));
                 leaseDuration = (int)leaseTime.Value.TotalSeconds;
             }
 
@@ -3274,7 +3780,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             int? breakSeconds = null;
             if (breakPeriod.HasValue)
             {
-                CommonUtility.AssertInBounds("breakPeriod", breakPeriod.Value, TimeSpan.Zero, TimeSpan.MaxValue);
+                CommonUtility.AssertInBounds("breakPeriod", breakPeriod.Value, TimeSpan.FromSeconds(Constants.MinimumBreakLeasePeriod), TimeSpan.FromSeconds(Constants.MaximumBreakLeasePeriod));
                 breakSeconds = (int)breakPeriod.Value.TotalSeconds;
             }
 
@@ -3306,6 +3812,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="blobAttributes">The attributes.</param>
         /// <param name="source">The URI of the source blob.</param>
+        /// <param name="incrementalCopy">A boolean indicating whether or not this is an incremental copy</param>
+        /// <param name="premiumPageBlobTier">A <see cref="PremiumPageBlobTier"/> representing the tier to set.</param>
         /// <param name="sourceAccessCondition">An <see cref="AccessCondition"/> object that represents the access conditions for the source object. If <c>null</c>, no condition is used.</param>
         /// <param name="destAccessCondition">An <see cref="AccessCondition"/> object that represents the access conditions for the destination blob. If <c>null</c>, no condition is used.</param>
         /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
@@ -3313,7 +3821,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// A <see cref="RESTCommand{T}"/> that starts to copy.
         /// </returns>
         /// <exception cref="System.ArgumentException">sourceAccessCondition</exception>
-        private RESTCommand<string> StartCopyImpl(BlobAttributes blobAttributes, Uri source, AccessCondition sourceAccessCondition, AccessCondition destAccessCondition, BlobRequestOptions options)
+        internal RESTCommand<string> StartCopyImpl(BlobAttributes blobAttributes, Uri source, bool incrementalCopy, PremiumPageBlobTier? premiumPageBlobTier, AccessCondition sourceAccessCondition, AccessCondition destAccessCondition, BlobRequestOptions options)
         {
             if (sourceAccessCondition != null && !string.IsNullOrEmpty(sourceAccessCondition.LeaseId))
             {
@@ -3323,7 +3831,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             RESTCommand<string> putCmd = new RESTCommand<string>(this.ServiceClient.Credentials, blobAttributes.StorageUri);
 
             options.ApplyToStorageCommand(putCmd);
-            putCmd.BuildRequestDelegate = (uri, builder, serverTimeout, useVersionHeader, ctx) => BlobHttpWebRequestFactory.CopyFrom(uri, serverTimeout, source, sourceAccessCondition, destAccessCondition, useVersionHeader, ctx);
+            putCmd.BuildRequestDelegate = (uri, builder, serverTimeout, useVersionHeader, ctx) => BlobHttpWebRequestFactory.CopyFrom(uri, serverTimeout, source, incrementalCopy, premiumPageBlobTier, sourceAccessCondition, destAccessCondition, useVersionHeader, ctx);
             putCmd.SetHeaders = (r, ctx) => BlobHttpWebRequestFactory.AddMetadata(r, blobAttributes.Metadata);
             putCmd.SignRequest = this.ServiceClient.AuthenticationHandler.SignRequest;
             putCmd.PreProcessResponse = (cmd, resp, ex, ctx) =>
@@ -3332,6 +3840,13 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
                 CloudBlob.UpdateETagLMTLengthAndSequenceNumber(blobAttributes, resp, false);
                 CopyState state = BlobHttpResponseParsers.GetCopyAttributes(resp);
                 blobAttributes.CopyState = state;
+
+                if (premiumPageBlobTier.HasValue)
+                {
+                    this.attributes.Properties.PremiumPageBlobTier = premiumPageBlobTier;
+                    this.attributes.Properties.BlobTierInferred = false;
+                }
+
                 return state.CopyId;
             };
 
@@ -3401,6 +3916,90 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         }
 
         /// <summary>
+        /// Validates that the AccessCondition and the RequestOptions passed into a KeyRotation operation are correct.
+        /// </summary>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. 
+        /// For this operation, there must not be an <see cref="AccessCondition.IfMatchETag"/>, <see cref="AccessCondition.IfNoneMatchETag"/>, 
+        /// <see cref="AccessCondition.IfModifiedSinceTime"/>, or <see cref="AccessCondition.IfNotModifiedSinceTime"/> condition.  
+        /// An <see cref="AccessCondition.IfMatchETag"/> condition will be added internally.</param>
+        /// <param name="options">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request.</param>
+        /// <param name="encryptionMetadataAvailable">If the encryption metadata is available on the local blob.</param>
+        private void ValidateKeyRotationArguments(AccessCondition accessCondition, BlobRequestOptions options, bool encryptionMetadataAvailable)
+        {
+            if (accessCondition != null && accessCondition.IsConditional)
+            {
+                throw new ArgumentException(SR.KeyRotationInvalidAccessCondition, "accessCondition");
+            }
+            if (options.EncryptionPolicy == null)
+            {
+                throw new ArgumentException(SR.KeyRotationNoEncryptionPolicy, "options.EncryptionPolicy");
+            }
+            if (options.EncryptionPolicy.Key == null)
+            {
+                throw new ArgumentException(SR.KeyRotationNoEncryptionKey, "options.EncryptionPolicy.Key");
+            }
+            if (options.EncryptionPolicy.KeyResolver == null)
+            {
+                throw new ArgumentException(SR.KeyRotationNoEncryptionKeyResolver, "options.EncryptionPolicy.KeyResolver");
+            }
+            if (this.Properties.ETag == null)
+            {
+                throw new InvalidOperationException(SR.KeyRotationNoEtag);
+            }
+            if (!encryptionMetadataAvailable)
+            {
+                throw new InvalidOperationException(SR.KeyRotationNoEncryptionMetadata);
+            }
+        }
+
+        private struct WrappedKeyData
+        {
+            public byte[] encryptedKey;
+            public string algorithm;
+            public BlobEncryptionData encryptionData;
+        }
+
+        /// <summary>
+        /// Run the elements of key rotation that are common to both the sync and async cases.
+        /// Because KV only offers us async operations, our sync codepath needs to wrap the async version, and we can reuse some of the code.
+        /// </summary>
+        /// <param name="accessCondition">An <see cref="AccessCondition"/> object that represents the condition that must be met in order for the request to proceed. 
+        /// For this operation, there must not be an <see cref="AccessCondition.IfMatchETag"/>, <see cref="AccessCondition.IfNoneMatchETag"/>, 
+        /// <see cref="AccessCondition.IfModifiedSinceTime"/>, or <see cref="AccessCondition.IfNotModifiedSinceTime"/> condition.  
+        /// An <see cref="AccessCondition.IfMatchETag"/> condition will be added internally.</param>
+        /// <param name="modifiedOptions">A <see cref="BlobRequestOptions"/> object that specifies additional options for the request. Must have already been processed with Apply Defaults.</param>
+        /// <param name="cancellationToken">The cancellation token to use for the async requests.</param>
+        /// <returns>The Task that generates the wrappped key.</returns>
+        private async Task<WrappedKeyData> RotateEncryptionHelper(AccessCondition accessCondition, BlobRequestOptions modifiedOptions, CancellationToken cancellationToken)
+        {
+            // Validate arguments:
+            String encryptionDataString;
+            bool encryptionMetadataAvailable = this.Metadata.TryGetValue(Constants.EncryptionConstants.BlobEncryptionData, out encryptionDataString);
+            this.ValidateKeyRotationArguments(accessCondition, modifiedOptions, encryptionMetadataAvailable);
+
+            // Deserialize the old encryption data and validate:
+            BlobEncryptionData encryptionData = Newtonsoft.Json.JsonConvert.DeserializeObject<BlobEncryptionData>(encryptionDataString);
+            if (encryptionData.WrappedContentKey.EncryptedKey == null)
+            {
+                throw new InvalidOperationException(SR.KeyRotationNoKeyID);
+            }
+
+            // Use the key resolver to resolve the old KEK.
+            IKey oldKey = await modifiedOptions.EncryptionPolicy.KeyResolver.ResolveKeyAsync(encryptionData.WrappedContentKey.KeyId, cancellationToken).ConfigureAwait(false);
+            if (oldKey == null)
+            {
+                throw new ArgumentException(SR.KeyResolverCannotResolveExistingKey);
+            }
+
+            // Use the old KEK to unwrap the CEK.
+            byte[] unwrappedOldKey = await oldKey.UnwrapKeyAsync(encryptionData.WrappedContentKey.EncryptedKey, encryptionData.WrappedContentKey.Algorithm, cancellationToken).ConfigureAwait(false);
+
+            // Use the new KEK to re-wrap the CEK.
+            Tuple<byte[], string> wrappedNewKey = await modifiedOptions.EncryptionPolicy.Key.WrapKeyAsync(unwrappedOldKey, null /* algorithm */, cancellationToken).ConfigureAwait(false);
+            return new WrappedKeyData() { encryptedKey = wrappedNewKey.Item1, algorithm = wrappedNewKey.Item2, encryptionData = encryptionData };
+        }
+
+        /// <summary>
         /// Called when the asynchronous operation to commit the blob started by UploadFromStream finishes.
         /// </summary>
         /// <param name="result">The result of the asynchronous operation.</param>
@@ -3427,9 +4026,8 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
         /// </summary>
         /// <param name="blobAttributes">The new attributes.</param>
         /// <param name="response">The response.</param>
-        /// <param name="ignoreMD5">if set to <c>true</c>, blob's MD5 will not be updated.</param>
         /// <exception cref="System.InvalidOperationException"></exception>
-        internal static void UpdateAfterFetchAttributes(BlobAttributes blobAttributes, HttpWebResponse response, bool ignoreMD5)
+        internal static void UpdateAfterFetchAttributes(BlobAttributes blobAttributes, HttpWebResponse response)
         {
             BlobProperties properties = BlobHttpResponseParsers.GetProperties(response);
 
@@ -3438,11 +4036,6 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             if (blobAttributes.Properties.BlobType != BlobType.Unspecified && blobAttributes.Properties.BlobType != properties.BlobType)
             {
                 throw new InvalidOperationException(SR.BlobTypeMismatch);
-            }
-
-            if (ignoreMD5)
-            {
-                properties.ContentMD5 = blobAttributes.Properties.ContentMD5;
             }
 
             blobAttributes.Properties = properties;
@@ -3463,6 +4056,7 @@ namespace Sandboxable.Microsoft.WindowsAzure.Storage.Blob
             blobAttributes.Properties.LastModified = parsedProperties.LastModified ?? blobAttributes.Properties.LastModified;
             blobAttributes.Properties.PageBlobSequenceNumber = parsedProperties.PageBlobSequenceNumber ?? blobAttributes.Properties.PageBlobSequenceNumber;
             blobAttributes.Properties.AppendBlobCommittedBlockCount = parsedProperties.AppendBlobCommittedBlockCount ?? blobAttributes.Properties.AppendBlobCommittedBlockCount;
+            blobAttributes.Properties.IsIncrementalCopy = parsedProperties.IsIncrementalCopy;
 
             if (updateLength)
             {
