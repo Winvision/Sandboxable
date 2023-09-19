@@ -1,4 +1,5 @@
 # Sandboxable
+**Note: As of 19/09/2023, due to organizational changes in Winvision, this repository & extension are no longer updated or supported.**
 Enables your project to utilize functionality provided by other (Microsoft) libraries that normally are not available in a Partial Trust environment like the Microsoft Dynamics CRM sandbox process.
 
 **Build status**  
